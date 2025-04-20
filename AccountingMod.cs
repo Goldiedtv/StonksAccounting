@@ -10,6 +10,7 @@ using Object = UnityEngine.Object;
 using System.IO;
 using System.Collections;
 using System.Linq;
+using Il2CppScheduleOne.Money;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -28,12 +29,40 @@ namespace StonksAccounting
     }
     public class StonksAccountingMod : MelonMod
     {
+        //MoneyManager.LastCalculatedNetworth Koko netwörtti?
+        //MoneyManager.LifetimeEarnings vai tää?
+
+        //MoneyManager.cashBalance käteinen
+        //MoneyManager.onlineBalance pankissa
+            
+
         [HarmonyPatch(typeof(Player), "ConsumeProduct")]
         public static class Player_ConsumeProduct_Patch
         {
             public static bool Prefix(Player __instance, ProductItemInstance product)
             {
                 MelonLogger.Msg("Product is being consumed");
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(MoneyManager), "CreateOnlineTransaction")]
+        public static class MoneyManager_CreateOnlineTransaction_Patch
+        {
+            public static bool Prefix(MoneyManager __instance, string _transaction_Name, float _unit_Amount, float _quantity, string _transaction_Note)
+            {
+                MelonLogger.Msg($"Online Transaction! Name: {_transaction_Name}, amount: {_unit_Amount}, quantity: {_quantity}, note: {_transaction_Note}");
+                return true;
+            }
+        }
+
+        //TODO: This DOES NOT account for deaddrop transactions
+        [HarmonyPatch(typeof(MoneyManager), "ChangeCashBalance")]
+        public static class oneyManager_ChangeCashBalance_Patch
+        {
+            public static bool Prefix(MoneyManager __instance, float change, bool visualizeChange, bool playCashSound)
+            {
+                MelonLogger.Msg($"Cash Balance Change! Change: {change}, visualizeChange: {visualizeChange}, playSound {playCashSound}");
                 return true;
             }
         }
