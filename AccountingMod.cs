@@ -11,6 +11,7 @@ using System.IO;
 using System.Collections;
 using System.Linq;
 using Il2CppScheduleOne.Money;
+using Il2CppScheduleOne.Economy;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -34,7 +35,9 @@ namespace StonksAccounting
 
         //MoneyManager.cashBalance käteinen
         //MoneyManager.onlineBalance pankissa
-            
+
+        //SupplierStash.RemoveCash(float) stashi?
+
 
         [HarmonyPatch(typeof(Player), "ConsumeProduct")]
         public static class Player_ConsumeProduct_Patch
@@ -42,6 +45,16 @@ namespace StonksAccounting
             public static bool Prefix(Player __instance, ProductItemInstance product)
             {
                 MelonLogger.Msg("Product is being consumed");
+                return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(SupplierStash), "RemoveCash")]
+        public static class SupplierStash_RemoveCash_Patch
+        {
+            public static bool Prefix(SupplierStash __instance, float amount)
+            {
+                MelonLogger.Msg($"Supplier remove cash! Cash: {amount}");
                 return true;
             }
         }
@@ -56,7 +69,6 @@ namespace StonksAccounting
             }
         }
 
-        //TODO: This DOES NOT account for deaddrop transactions
         [HarmonyPatch(typeof(MoneyManager), "ChangeCashBalance")]
         public static class oneyManager_ChangeCashBalance_Patch
         {
@@ -92,6 +104,7 @@ namespace StonksAccounting
             {
                 LoggerInstance.Msg("Entered target scene: '" + sceneName + "'. Resetting state.");
                 ResetSceneState();
+
             }
             else if (!_isInTargetScene && wasInTargetScene)
             {
@@ -116,6 +129,31 @@ namespace StonksAccounting
             {
                 TryFindPlayerAndStartInit();
             }
+
+            if (Input.GetKeyDown(KeyCode.K))
+            {
+                var moneyManagerObject = GameObject.Find("@Money");
+                if (moneyManagerObject == null)
+                {
+                    LoggerInstance.Error("MoneyManager object not found!");
+                    return;
+                }
+                else
+                    LoggerInstance.Error("MoneyManager object found!");
+
+                var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
+                if (moneyManager == null)
+                {
+                    LoggerInstance.Error("MoneyManager component not found!");
+                    return;
+                }
+                else
+                    LoggerInstance.Error("MoneyManager component found!");
+
+                LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
+
+            }
+
         }
 
         private void TryFindPlayerAndStartInit()
