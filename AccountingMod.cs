@@ -373,7 +373,7 @@ namespace StonksAccounting
                 textRT.anchoredPosition = Vector2.zero;
                 textRT.sizeDelta = new Vector2(200, 50);
 
-                // CashGains Text
+                // CashGains Textd
                 //TODO: This goes wrong TextObject still, and the amounts doesn't referesh
                 GameObject CashGainGO = new GameObject("CashGainText");
                 textGO.transform.SetParent(container.transform, false);
