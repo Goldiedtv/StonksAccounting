@@ -12,6 +12,7 @@ using System.Collections;
 using System.Linq;
 using Il2CppScheduleOne.Money;
 using Il2CppScheduleOne.Economy;
+using Il2CppScheduleOne.UI.Phone;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -38,6 +39,9 @@ namespace StonksAccounting
 
         //SupplierStash.RemoveCash(float) stashi?
 
+        public static AccountingData _accountingData = new AccountingData();
+        public bool _isMoneyInit = false;
+
 
         [HarmonyPatch(typeof(Player), "ConsumeProduct")]
         public static class Player_ConsumeProduct_Patch
@@ -55,6 +59,9 @@ namespace StonksAccounting
             public static bool Prefix(SupplierStash __instance, float amount)
             {
                 MelonLogger.Msg($"Supplier remove cash! Cash: {amount}");
+
+                _accountingData.CurrentDayTransaction.cashLoss -= amount;
+
                 return true;
             }
         }
@@ -65,6 +72,15 @@ namespace StonksAccounting
             public static bool Prefix(MoneyManager __instance, string _transaction_Name, float _unit_Amount, float _quantity, string _transaction_Note)
             {
                 MelonLogger.Msg($"Online Transaction! Name: {_transaction_Name}, amount: {_unit_Amount}, quantity: {_quantity}, note: {_transaction_Note}");
+                if (_unit_Amount > 0)
+                {
+                    _accountingData.CurrentDayTransaction.onlineGain += _unit_Amount;
+                }
+                else
+                {
+                    _accountingData.CurrentDayTransaction.onlineLoss += _unit_Amount;
+                }
+
                 return true;
             }
         }
@@ -75,6 +91,16 @@ namespace StonksAccounting
             public static bool Prefix(MoneyManager __instance, float change, bool visualizeChange, bool playCashSound)
             {
                 MelonLogger.Msg($"Cash Balance Change! Change: {change}, visualizeChange: {visualizeChange}, playSound {playCashSound}");
+
+                if (change > 0)
+                {
+                    _accountingData.CurrentDayTransaction.cashGain += change;
+                }
+                else
+                {
+                    _accountingData.CurrentDayTransaction.cashLoss += change;
+                }
+
                 return true;
             }
         }
@@ -130,28 +156,49 @@ namespace StonksAccounting
                 TryFindPlayerAndStartInit();
             }
 
+            //if (!_isMoneyInit)
+            //{
+            //    try
+            //    {
+            //        var moneyManagerObject = GameObject.Find("@Money");
+            //        if (moneyManagerObject == null)
+            //        {
+            //            LoggerInstance.Error("MoneyManager object not found!");
+            //            return;
+            //        }
+            //        else
+            //            LoggerInstance.Error("MoneyManager object found!");
+
+            //        var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
+            //        if (moneyManager == null)
+            //        {
+            //            LoggerInstance.Error("MoneyManager component not found!");
+            //            return;
+            //        }
+            //        else
+            //            LoggerInstance.Error("MoneyManager component found!");
+
+            //        LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
+            //        _accountingData.CashBalance = moneyManager.cashInstance.Balance;
+            //        _accountingData.OnlineBalance = moneyManager.onlineBalance;
+            //        Transactions transactions = new Transactions
+            //        {
+            //            startCash = moneyManager.cashInstance.Balance,
+            //            startOnline = moneyManager.onlineBalance
+            //        };
+            //        _accountingData.CurrentDayTransaction = transactions;
+            //        _isMoneyInit = true;
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        LoggerInstance.Error("Error initializing money manager: " + ex);
+            //    }
+            //}
+
             if (Input.GetKeyDown(KeyCode.K))
             {
-                var moneyManagerObject = GameObject.Find("@Money");
-                if (moneyManagerObject == null)
-                {
-                    LoggerInstance.Error("MoneyManager object not found!");
-                    return;
-                }
-                else
-                    LoggerInstance.Error("MoneyManager object found!");
-
-                var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
-                if (moneyManager == null)
-                {
-                    LoggerInstance.Error("MoneyManager component not found!");
-                    return;
-                }
-                else
-                    LoggerInstance.Error("MoneyManager component found!");
-
-                LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
-
+                LoggerInstance.Msg($"We have {_accountingData.CurrentDayTransaction.cashGain} cashGain and {_accountingData.CurrentDayTransaction.cashLoss} cashLoss. Totalling: {_accountingData.CurrentDayTransaction.cashGain + _accountingData.CurrentDayTransaction.cashLoss}");
+                LoggerInstance.Msg($"We have {_accountingData.CurrentDayTransaction.onlineGain} onlineGain and {_accountingData.CurrentDayTransaction.onlineLoss} onlineLoss. Totalling: {_accountingData.CurrentDayTransaction.onlineGain + _accountingData.CurrentDayTransaction.onlineLoss}");
             }
 
         }
@@ -242,6 +289,35 @@ namespace StonksAccounting
                     LoggerInstance.Error("Failed to modify app icon.");
                 }
             }
+
+            var moneyManagerObject = GameObject.Find("@Money");
+            if (moneyManagerObject == null)
+            {
+                LoggerInstance.Error("MoneyManager object not found!");
+                return;
+            }
+            else
+                LoggerInstance.Error("MoneyManager object found!");
+
+            var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
+            if (moneyManager == null)
+            {
+                LoggerInstance.Error("MoneyManager component not found!");
+                return;
+            }
+            else
+                LoggerInstance.Error("MoneyManager component found!");
+
+            LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
+            _accountingData.CashBalance = moneyManager.cashInstance.Balance;
+            _accountingData.OnlineBalance = moneyManager.onlineBalance;
+            Transactions transactions = new Transactions
+            {
+                startCash = moneyManager.cashInstance.Balance,
+                startOnline = moneyManager.onlineBalance
+            };
+            _accountingData.CurrentDayTransaction = transactions;
+
         }
 
         private void EnsureAppPanelIsSetup(GameObject appPanel)
@@ -297,6 +373,22 @@ namespace StonksAccounting
                 textRT.anchoredPosition = Vector2.zero;
                 textRT.sizeDelta = new Vector2(200, 50);
 
+                // CashGains Text
+                //TODO: This goes wrong TextObject still, and the amounts doesn't referesh
+                GameObject CashGainGO = new GameObject("CashGainText");
+                textGO.transform.SetParent(container.transform, false);
+                RectTransform CashGainRT = textGO.AddComponent<RectTransform>();
+                Text CashGain = textGO.AddComponent<Text>();
+                text.text = $"Cash +{_accountingData.CurrentDayTransaction.cashGain}, {_accountingData.CurrentDayTransaction.cashLoss} = {_accountingData.CurrentDayTransaction.cashGain + _accountingData.CurrentDayTransaction.cashLoss}";
+                text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                text.alignment = TextAnchor.MiddleLeft;
+                text.color = Color.white;
+                text.fontSize = 24;
+                textRT.anchorMin = new Vector2(0.5f, 0.9f);
+                textRT.anchorMax = new Vector2(0.5f, 0.9f); 
+                textRT.anchoredPosition = Vector2.zero;
+                textRT.sizeDelta = new Vector2(200, 50);
+
                 // Button
                 GameObject buttonGO = new GameObject("ClickMeButton");
                 buttonGO.transform.SetParent(container.transform, false);
@@ -338,6 +430,20 @@ namespace StonksAccounting
         public void Click()
         {
             MelonLogger.Msg("ButtonClickHandler: Clicked!");
+            GameObject appsCanvas = GameObject.Find("Player_Local/CameraContainer/Camera/OverlayCamera/GameplayMenu/Phone/phone/AppsCanvas");
+            Transform existingApp = appsCanvas.transform.Find("MyCustomApp");
+            var appPanel = existingApp.gameObject;
+            GameObject container = appPanel?.transform.Find("Container")?.gameObject;
+            if (container != null && container.transform.childCount < 2)
+            {
+                LoggerInstance.Msg("Rebuilding UI in existing panel '" + appPanel.name + "'...");
+                HideDefaultAppUI(container);
+                BuildCustomAppUI(container);
+            }
+            else if (container == null && appPanel != null)
+            {
+                LoggerInstance.Error("EnsureAppPanelIsSetup: Container missing!");
+            }
         }
 
 
