@@ -112,6 +112,8 @@ namespace StonksAccounting
         private bool _initializationCoroutineStarted;
         private GameObject _myCustomAppPanel;
 
+        private GameObject _customAppContainer;
+
         public override void OnInitializeMelon()
         {
             LoggerInstance.Msg(Info.Name + " v" + Info.Version + " Initialized.");
@@ -262,6 +264,7 @@ namespace StonksAccounting
                 GameObject container = containerTransform != null ? containerTransform.gameObject : null;
                 if (container != null)
                 {
+                    _customAppContainer = container;
                     HideDefaultAppUI(container);
                     BuildCustomAppUI(container);
                 }
@@ -363,7 +366,7 @@ namespace StonksAccounting
                 textGO.transform.SetParent(container.transform, false);
                 RectTransform textRT = textGO.AddComponent<RectTransform>();
                 Text text = textGO.AddComponent<Text>();
-                text.text = "My Custom App";
+                text.text = "S.T.O.N.K.S. - Accounting";
                 text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 text.alignment = TextAnchor.MiddleCenter;
                 text.color = Color.white;
@@ -373,21 +376,53 @@ namespace StonksAccounting
                 textRT.anchoredPosition = Vector2.zero;
                 textRT.sizeDelta = new Vector2(200, 50);
 
+                float _cashGain = _accountingData.CurrentDayTransaction.cashGain;
+                float _cashLoss = _accountingData.CurrentDayTransaction.cashLoss;
+                float _onlineGain = _accountingData.CurrentDayTransaction.onlineGain;
+                float _onlineLoss = _accountingData.CurrentDayTransaction.onlineLoss;
+
                 // CashGains Textd
-                //TODO: This goes wrong TextObject still, and the amounts doesn't referesh
                 GameObject CashGainGO = new GameObject("CashGainText");
-                textGO.transform.SetParent(container.transform, false);
-                RectTransform CashGainRT = textGO.AddComponent<RectTransform>();
-                Text CashGain = textGO.AddComponent<Text>();
-                text.text = $"Cash +{_accountingData.CurrentDayTransaction.cashGain}, {_accountingData.CurrentDayTransaction.cashLoss} = {_accountingData.CurrentDayTransaction.cashGain + _accountingData.CurrentDayTransaction.cashLoss}";
-                text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                text.alignment = TextAnchor.MiddleLeft;
-                text.color = Color.white;
-                text.fontSize = 24;
-                textRT.anchorMin = new Vector2(0.5f, 0.9f);
-                textRT.anchorMax = new Vector2(0.5f, 0.9f); 
-                textRT.anchoredPosition = Vector2.zero;
-                textRT.sizeDelta = new Vector2(200, 50);
+                CashGainGO.transform.SetParent(container.transform, false);
+                RectTransform CashGainRT = CashGainGO.AddComponent<RectTransform>();
+                Text CashGain = CashGainGO.AddComponent<Text>();
+                CashGain.text = $"Cash +{_cashGain}$, {_cashLoss}$ = {_cashGain + _cashLoss}$";
+                CashGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                CashGain.alignment = TextAnchor.MiddleLeft;
+                CashGain.color = Color.white;
+                CashGain.fontSize = 24;
+                CashGainRT.anchorMin = new Vector2(0.5f, 0.75f);
+                CashGainRT.anchorMax = new Vector2(0.5f, 0.75f);
+                CashGainRT.anchoredPosition = Vector2.zero;
+                CashGainRT.sizeDelta = new Vector2(600, 50);
+                // OnlineGains Textd
+                GameObject OnlineGainGO = new GameObject("OnlineGainText");
+                OnlineGainGO.transform.SetParent(container.transform, false);
+                RectTransform OnlineGainRT = OnlineGainGO.AddComponent<RectTransform>();
+                Text OnlineGain = OnlineGainGO.AddComponent<Text>();
+                OnlineGain.text = $"Online +{_onlineGain}$, {_onlineLoss}$ = {_onlineGain + _onlineLoss}$";
+                OnlineGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                OnlineGain.alignment = TextAnchor.MiddleLeft;
+                OnlineGain.color = Color.white;
+                OnlineGain.fontSize = 24;
+                OnlineGainRT.anchorMin = new Vector2(0.5f, 0.62f);
+                OnlineGainRT.anchorMax = new Vector2(0.5f, 0.62f);
+                OnlineGainRT.anchoredPosition = Vector2.zero;
+                OnlineGainRT.sizeDelta = new Vector2(600, 50);
+
+                // TotalGains Textd
+                GameObject TotalGainGO = new GameObject("TotalGainText");
+                TotalGainGO.transform.SetParent(container.transform, false);
+                RectTransform TotalGainRT = TotalGainGO.AddComponent<RectTransform>();
+                Text TotalGain = TotalGainGO.AddComponent<Text>();
+                TotalGain.text = $"Total +{_onlineGain + _cashGain}$, {_onlineLoss + _cashLoss}$ = {(_onlineGain + _cashGain) + (_onlineLoss + _cashLoss)}$";
+                TotalGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                TotalGain.color = Color.white;
+                TotalGain.fontSize = 24;
+                TotalGainRT.anchorMin = new Vector2(0.5f, 0.50f);
+                TotalGainRT.anchorMax = new Vector2(0.5f, 0.50f);
+                TotalGainRT.anchoredPosition = Vector2.zero;
+                TotalGainRT.sizeDelta = new Vector2(600, 50);
 
                 // Button
                 GameObject buttonGO = new GameObject("ClickMeButton");
@@ -402,7 +437,7 @@ namespace StonksAccounting
                 buttonTextGO.transform.SetParent(buttonGO.transform, false);
                 RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
                 Text buttonText = buttonTextGO.AddComponent<Text>();
-                buttonText.text = "Click Me";
+                buttonText.text = "Refresh";
                 buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 buttonText.alignment = TextAnchor.MiddleCenter;
                 buttonText.color = Color.black;
@@ -413,8 +448,8 @@ namespace StonksAccounting
                 buttonTextRT.offsetMax = Vector2.zero;
 
                 // Button position
-                buttonRT.anchorMin = new Vector2(0.5f, 0.5f);
-                buttonRT.anchorMax = new Vector2(0.5f, 0.5f);
+                buttonRT.anchorMin = new Vector2(0.5f, 0.25f);
+                buttonRT.anchorMax = new Vector2(0.5f, 0.25f);
                 buttonRT.anchoredPosition = Vector2.zero;
                 buttonRT.sizeDelta = new Vector2(160, 50);
 
@@ -430,19 +465,12 @@ namespace StonksAccounting
         public void Click()
         {
             MelonLogger.Msg("ButtonClickHandler: Clicked!");
-            GameObject appsCanvas = GameObject.Find("Player_Local/CameraContainer/Camera/OverlayCamera/GameplayMenu/Phone/phone/AppsCanvas");
-            Transform existingApp = appsCanvas.transform.Find("MyCustomApp");
-            var appPanel = existingApp.gameObject;
-            GameObject container = appPanel?.transform.Find("Container")?.gameObject;
-            if (container != null && container.transform.childCount < 2)
+
+            if (_customAppContainer != null)
             {
-                LoggerInstance.Msg("Rebuilding UI in existing panel '" + appPanel.name + "'...");
-                HideDefaultAppUI(container);
-                BuildCustomAppUI(container);
-            }
-            else if (container == null && appPanel != null)
-            {
-                LoggerInstance.Error("EnsureAppPanelIsSetup: Container missing!");
+                LoggerInstance.Msg("Rebuilding UI in existing panel '" + _customAppContainer.name + "'...");
+                HideDefaultAppUI(_customAppContainer);
+                BuildCustomAppUI(_customAppContainer);
             }
         }
 
