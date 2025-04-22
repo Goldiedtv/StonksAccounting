@@ -361,6 +361,17 @@ namespace StonksAccounting
             {
                 LoggerInstance.Msg("BuildCustomAppUI: Starting setup.");
 
+                // Background Text
+                GameObject bgGO = new GameObject("AppBackground");
+                bgGO.transform.SetParent(container.transform, false);
+                RectTransform bgRT = bgGO.AddComponent<RectTransform>();
+                Image bg = bgGO.AddComponent<Image>();
+                bg.color = Color.white;
+                bgRT.anchorMin = new Vector2(0.5f, 0.5f);
+                bgRT.anchorMax = new Vector2(0.5f, 0.5f);
+                bgRT.anchoredPosition = Vector2.zero;
+                bgRT.sizeDelta = new Vector2(1400, 700);
+
                 // Title Text
                 GameObject textGO = new GameObject("AppTitleText");
                 textGO.transform.SetParent(container.transform, false);
@@ -369,12 +380,13 @@ namespace StonksAccounting
                 text.text = "S.T.O.N.K.S. - Accounting";
                 text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 text.alignment = TextAnchor.MiddleCenter;
-                text.color = Color.white;
+                text.color = Color.black;
                 text.fontSize = 24;
                 textRT.anchorMin = new Vector2(0.5f, 0.9f);
                 textRT.anchorMax = new Vector2(0.5f, 0.9f);
                 textRT.anchoredPosition = Vector2.zero;
                 textRT.sizeDelta = new Vector2(200, 50);
+
 
                 float _cashGain = _accountingData.CurrentDayTransaction.cashGain;
                 float _cashLoss = _accountingData.CurrentDayTransaction.cashLoss;
@@ -389,7 +401,7 @@ namespace StonksAccounting
                 CashGain.text = $"Cash +{_cashGain}$, {_cashLoss}$ = {_cashGain + _cashLoss}$";
                 CashGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 CashGain.alignment = TextAnchor.MiddleLeft;
-                CashGain.color = Color.white;
+                CashGain.color = Color.black;
                 CashGain.fontSize = 24;
                 CashGainRT.anchorMin = new Vector2(0.5f, 0.75f);
                 CashGainRT.anchorMax = new Vector2(0.5f, 0.75f);
@@ -403,7 +415,7 @@ namespace StonksAccounting
                 OnlineGain.text = $"Online +{_onlineGain}$, {_onlineLoss}$ = {_onlineGain + _onlineLoss}$";
                 OnlineGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 OnlineGain.alignment = TextAnchor.MiddleLeft;
-                OnlineGain.color = Color.white;
+                OnlineGain.color = Color.black;
                 OnlineGain.fontSize = 24;
                 OnlineGainRT.anchorMin = new Vector2(0.5f, 0.62f);
                 OnlineGainRT.anchorMax = new Vector2(0.5f, 0.62f);
@@ -417,7 +429,7 @@ namespace StonksAccounting
                 Text TotalGain = TotalGainGO.AddComponent<Text>();
                 TotalGain.text = $"Total +{_onlineGain + _cashGain}$, {_onlineLoss + _cashLoss}$ = {(_onlineGain + _cashGain) + (_onlineLoss + _cashLoss)}$";
                 TotalGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                TotalGain.color = Color.white;
+                TotalGain.color = Color.black;
                 TotalGain.fontSize = 24;
                 TotalGainRT.anchorMin = new Vector2(0.5f, 0.50f);
                 TotalGainRT.anchorMax = new Vector2(0.5f, 0.50f);
