@@ -13,6 +13,8 @@ using System.Linq;
 using Il2CppScheduleOne.Money;
 using Il2CppScheduleOne.Economy;
 using Il2CppScheduleOne.UI.Phone;
+using Il2CppScheduleOne.Persistence;
+using Il2CppScheduleOne.GameTime;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -42,13 +44,44 @@ namespace StonksAccounting
         public static AccountingData _accountingData = new AccountingData();
         public bool _isMoneyInit = false;
 
-
-        [HarmonyPatch(typeof(Player), "ConsumeProduct")]
-        public static class Player_ConsumeProduct_Patch
+        //TimeManager.ElapsedDays This is the current day number
+        [HarmonyPatch(typeof(TimeManager), "FastForwardToWakeTime")]
+        public static class TimeManager_FastForwardToWakeTime_Patch
         {
-            public static bool Prefix(Player __instance, ProductItemInstance product)
+            public static void Prefix(TimeManager __instance)
             {
-                MelonLogger.Msg("Product is being consumed");
+                MelonLogger.Msg($"FastForwardToWakeTime!"); //THIS IS FINE WAY TO END/START DAY (untill I find where's the proper "endDay" call)
+            }
+        }
+
+        [HarmonyPatch(typeof(TimeManager), "EndSleep")]
+        public static class TimeManager_EndSleep_Patch
+        {
+            public static void Prefix(TimeManager __instance)
+            {
+                MelonLogger.Msg($"EndSleep!");
+            }
+        }
+
+        [HarmonyPatch(typeof(SavePoint), "Save")]
+        public static class SavePoint_Save_Patch
+        {
+            public static void Prefix(SavePoint __instance)
+            {
+                MelonLogger.Msg($"Saved!");
+            }
+        }
+
+        [HarmonyPatch(typeof(Phone), "SetIsOpen")]
+        public static class Phone_SetIsOpen_Patch
+        {
+            public static bool Prefix(Phone __instance, bool o)
+            {
+                if (o)
+                {
+                    MelonLogger.Msg($"Phone is open!");
+                    updateStonks = true;
+                }
                 return true;
             }
         }
@@ -66,6 +99,7 @@ namespace StonksAccounting
             }
         }
 
+        //TODO There is also ReceiveOnlineTransaction method!
         [HarmonyPatch(typeof(MoneyManager), "CreateOnlineTransaction")]
         public static class MoneyManager_CreateOnlineTransaction_Patch
         {
@@ -113,6 +147,7 @@ namespace StonksAccounting
         private GameObject _myCustomAppPanel;
 
         private GameObject _customAppContainer;
+        private static bool updateStonks = false;
 
         public override void OnInitializeMelon()
         {
@@ -158,44 +193,16 @@ namespace StonksAccounting
                 TryFindPlayerAndStartInit();
             }
 
-            //if (!_isMoneyInit)
-            //{
-            //    try
-            //    {
-            //        var moneyManagerObject = GameObject.Find("@Money");
-            //        if (moneyManagerObject == null)
-            //        {
-            //            LoggerInstance.Error("MoneyManager object not found!");
-            //            return;
-            //        }
-            //        else
-            //            LoggerInstance.Error("MoneyManager object found!");
-
-            //        var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
-            //        if (moneyManager == null)
-            //        {
-            //            LoggerInstance.Error("MoneyManager component not found!");
-            //            return;
-            //        }
-            //        else
-            //            LoggerInstance.Error("MoneyManager component found!");
-
-            //        LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
-            //        _accountingData.CashBalance = moneyManager.cashInstance.Balance;
-            //        _accountingData.OnlineBalance = moneyManager.onlineBalance;
-            //        Transactions transactions = new Transactions
-            //        {
-            //            startCash = moneyManager.cashInstance.Balance,
-            //            startOnline = moneyManager.onlineBalance
-            //        };
-            //        _accountingData.CurrentDayTransaction = transactions;
-            //        _isMoneyInit = true;
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        LoggerInstance.Error("Error initializing money manager: " + ex);
-            //    }
-            //}
+            if (updateStonks)
+            {
+                if (_customAppContainer != null)
+                {
+                    LoggerInstance.Msg("Rebuilding UI in existing panel '" + _customAppContainer.name + "'...");
+                    HideDefaultAppUI(_customAppContainer);
+                    BuildCustomAppUI(_customAppContainer);
+                }
+                updateStonks = false;
+            }
 
             if (Input.GetKeyDown(KeyCode.K))
             {
@@ -436,37 +443,37 @@ namespace StonksAccounting
                 TotalGainRT.anchoredPosition = Vector2.zero;
                 TotalGainRT.sizeDelta = new Vector2(600, 50);
 
-                // Button
-                GameObject buttonGO = new GameObject("ClickMeButton");
-                buttonGO.transform.SetParent(container.transform, false);
-                RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
-                Image buttonImage = buttonGO.AddComponent<Image>();
-                buttonImage.color = Color.gray;
-                Button button = buttonGO.AddComponent<Button>();
+                //// Button
+                //GameObject buttonGO = new GameObject("ClickMeButton");
+                //buttonGO.transform.SetParent(container.transform, false);
+                //RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
+                //Image buttonImage = buttonGO.AddComponent<Image>();
+                //buttonImage.color = Color.gray;
+                //Button button = buttonGO.AddComponent<Button>();
 
-                // Button text
-                GameObject buttonTextGO = new GameObject("ButtonText");
-                buttonTextGO.transform.SetParent(buttonGO.transform, false);
-                RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
-                Text buttonText = buttonTextGO.AddComponent<Text>();
-                buttonText.text = "Refresh";
-                buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                buttonText.alignment = TextAnchor.MiddleCenter;
-                buttonText.color = Color.black;
-                buttonText.fontSize = 18;
-                buttonTextRT.anchorMin = Vector2.zero;
-                buttonTextRT.anchorMax = Vector2.one;
-                buttonTextRT.offsetMin = Vector2.zero;
-                buttonTextRT.offsetMax = Vector2.zero;
+                //// Button text
+                //GameObject buttonTextGO = new GameObject("ButtonText");
+                //buttonTextGO.transform.SetParent(buttonGO.transform, false);
+                //RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
+                //Text buttonText = buttonTextGO.AddComponent<Text>();
+                //buttonText.text = "Refresh";
+                //buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                //buttonText.alignment = TextAnchor.MiddleCenter;
+                //buttonText.color = Color.black;
+                //buttonText.fontSize = 18;
+                //buttonTextRT.anchorMin = Vector2.zero;
+                //buttonTextRT.anchorMax = Vector2.one;
+                //buttonTextRT.offsetMin = Vector2.zero;
+                //buttonTextRT.offsetMax = Vector2.zero;
 
-                // Button position
-                buttonRT.anchorMin = new Vector2(0.5f, 0.25f);
-                buttonRT.anchorMax = new Vector2(0.5f, 0.25f);
-                buttonRT.anchoredPosition = Vector2.zero;
-                buttonRT.sizeDelta = new Vector2(160, 50);
+                //// Button position
+                //buttonRT.anchorMin = new Vector2(0.5f, 0.25f);
+                //buttonRT.anchorMax = new Vector2(0.5f, 0.25f);
+                //buttonRT.anchoredPosition = Vector2.zero;
+                //buttonRT.sizeDelta = new Vector2(160, 50);
 
-                void FuncThatCallsFunc() => Click();
-                button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
+                //void FuncThatCallsFunc() => Click();
+                //button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
             }
             catch (Exception ex)
             {
@@ -477,17 +484,7 @@ namespace StonksAccounting
         public void Click()
         {
             MelonLogger.Msg("ButtonClickHandler: Clicked!");
-
-            if (_customAppContainer != null)
-            {
-                LoggerInstance.Msg("Rebuilding UI in existing panel '" + _customAppContainer.name + "'...");
-                HideDefaultAppUI(_customAppContainer);
-                BuildCustomAppUI(_customAppContainer);
-            }
         }
-
-
-
 
         private bool ModifyAppIcon(string targetIconGameObjectName, string targetLabelText, MelonLogger.Instance logger)
         {
