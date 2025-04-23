@@ -7,7 +7,6 @@ using UnityEngine.Events;
 using UnityEngine.UI;
 using UnityEngine;
 using Object = UnityEngine.Object;
-using System.IO;
 using System.Collections;
 using System.Linq;
 using Il2CppScheduleOne.Money;
@@ -15,6 +14,8 @@ using Il2CppScheduleOne.Economy;
 using Il2CppScheduleOne.UI.Phone;
 using Il2CppScheduleOne.Persistence;
 using Il2CppScheduleOne.GameTime;
+using Il2CppSystem.IO;
+using System.Xml.Serialization;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -33,6 +34,45 @@ namespace StonksAccounting
     }
     public class StonksAccountingMod : MelonMod
     {
+        public static void SaveData()
+        {
+            try
+            {
+                string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.xml");
+                var serializer = new XmlSerializer(typeof(AccountingData));
+                using (var writer = new System.IO.StreamWriter(dataPath))
+                {
+                    serializer.Serialize(writer, _accountingData);
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"Error saving data: {ex.Message}");
+            }
+        }
+        public static AccountingData LoadData()
+        {
+            try
+            {
+                string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.xml");
+                var serializer = new XmlSerializer(typeof(AccountingData));
+                using (var reader = new System.IO.StreamReader(dataPath))
+                {
+                    return (AccountingData)serializer.Deserialize(reader);
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"Error loading data: {ex.Message}");
+                return new AccountingData();
+            }
+        }
+        public static bool LoadDataExists()
+        {
+            string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.xml");
+            return Il2CppSystem.IO.File.Exists(dataPath);
+        }
+
         //MoneyManager.LastCalculatedNetworth Koko netwörtti?
         //MoneyManager.LifetimeEarnings vai tää?
 
@@ -71,7 +111,8 @@ namespace StonksAccounting
         {
             public static void Prefix(SavePoint __instance)
             {
-                MelonLogger.Msg($"Saved!");
+                MelonLogger.Msg($"Saving!");
+                SaveData();
             }
         }
 
@@ -313,33 +354,29 @@ namespace StonksAccounting
             }
 
             var moneyManagerObject = GameObject.Find("@Money");
-            if (moneyManagerObject == null)
-            {
-                LoggerInstance.Error("MoneyManager object not found!");
-                return;
-            }
-            else
-                LoggerInstance.Error("MoneyManager object found!");
-
             var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
-            if (moneyManager == null)
-            {
-                LoggerInstance.Error("MoneyManager component not found!");
-                return;
-            }
-            else
-                LoggerInstance.Error("MoneyManager component found!");
 
             LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
-            _accountingData.CashBalance = moneyManager.cashInstance.Balance;
-            _accountingData.OnlineBalance = moneyManager.onlineBalance;
-            AccountingTransactions transactions = new AccountingTransactions
-            {
-                startCash = moneyManager.cashInstance.Balance,
-                startOnline = moneyManager.onlineBalance
-            };
-            _accountingData.CurrentDayTransaction = transactions;
 
+            if (LoadDataExists())
+            {
+                LoggerInstance.Msg("Loading data...");
+                _accountingData = LoadData();
+                LoggerInstance.Msg($"Loaded data successfully. We have {_accountingData.TransactionHistory.Count} days of Accounting Data");
+            }
+            else
+            {
+                LoggerInstance.Msg("No data found, creating new data.");
+                _accountingData.CashBalance = moneyManager.cashInstance.Balance;
+                _accountingData.OnlineBalance = moneyManager.onlineBalance;
+                AccountingTransactions transactions = new AccountingTransactions
+                {
+                    startCash = moneyManager.cashInstance.Balance,
+                    startOnline = moneyManager.onlineBalance
+                };
+                _accountingData.CurrentDayTransaction = transactions;
+
+            }
         }
 
         private void EnsureAppPanelIsSetup(GameObject appPanel)
@@ -465,12 +502,12 @@ namespace StonksAccounting
                 float _onlineGain7 = _accountingData.GetSevenDayOnline(true);
                 float _onlineLoss7 = _accountingData.GetSevenDayOnline(false);
                 string disclaimer = (_accountingData.TransactionHistory.Count < 6) ? $"({_accountingData.TransactionHistory.Count + 1} in history)" : "";
-                
+
                 GameObject SevenDayTotalGO = new GameObject("SevenDayTotalText");
                 SevenDayTotalGO.transform.SetParent(container.transform, false);
                 RectTransform SevenDayTotalRT = SevenDayTotalGO.AddComponent<RectTransform>();
                 Text SevenDayTotal = SevenDayTotalGO.AddComponent<Text>();
-                SevenDayTotal.text = $"7 day Total{disclaimer}:\n+{_cashGain7+_onlineGain7}$\n{((_cashLoss7 + _onlineLoss7 == 0) ? negativeMark : "")}{_onlineLoss7 + _cashLoss7}$\n= {(_onlineGain7 + _cashGain7) + (_onlineLoss7 + _cashLoss7)}$";
+                SevenDayTotal.text = $"7 day Total{disclaimer}:\n+{_cashGain7 + _onlineGain7}$\n{((_cashLoss7 + _onlineLoss7 == 0) ? negativeMark : "")}{_onlineLoss7 + _cashLoss7}$\n= {(_onlineGain7 + _cashGain7) + (_onlineLoss7 + _cashLoss7)}$";
                 SevenDayTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 SevenDayTotal.alignment = TextAnchor.MiddleRight;
                 SevenDayTotal.color = Color.black;
@@ -621,8 +658,8 @@ namespace StonksAccounting
 
         private Texture2D LoadCustomTexture(MelonLogger.Instance logger)
         {
-            string iconPath = Path.Combine(MelonEnvironment.UserDataDirectory, "SilkroadIcon.png");
-            if (!File.Exists(iconPath))
+            string iconPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "SilkroadIcon.png");
+            if (!Il2CppSystem.IO.File.Exists(iconPath))
             {
                 if (logger != null)
                 {
@@ -632,7 +669,7 @@ namespace StonksAccounting
             }
             try
             {
-                byte[] imageData = File.ReadAllBytes(iconPath);
+                byte[] imageData = Il2CppSystem.IO.File.ReadAllBytes(iconPath);
                 Texture2D texture = new Texture2D(2, 2);
                 if (ImageConversion.LoadImage(texture, imageData, false))
                 {
