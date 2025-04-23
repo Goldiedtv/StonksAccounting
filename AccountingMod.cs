@@ -39,8 +39,6 @@ namespace StonksAccounting
         //MoneyManager.cashBalance käteinen
         //MoneyManager.onlineBalance pankissa
 
-        //SupplierStash.RemoveCash(float) stashi?
-
         public static AccountingData _accountingData = new AccountingData();
         public bool _isMoneyInit = false;
 
@@ -50,7 +48,12 @@ namespace StonksAccounting
         {
             public static void Prefix(TimeManager __instance)
             {
-                MelonLogger.Msg($"FastForwardToWakeTime!"); //THIS IS FINE WAY TO END/START DAY (untill I find where's the proper "endDay" call)
+                MelonLogger.Msg($"FastForwardToWakeTime! Today is {__instance.ElapsedDays}"); //THIS IS FINE WAY TO END/START DAY (untill I find where's the proper "endDay" call)
+
+                _accountingData.TransactionHistory.Add(__instance.ElapsedDays, _accountingData.CurrentDayTransaction);
+                _accountingData.CurrentDayTransaction = new AccountingTransactions();
+
+                MelonLogger.Msg($"Added yesterday's Transactions to history, and starting a new Transactions for today. Our history is {_accountingData.TransactionHistory.Count} long.");
             }
         }
 
@@ -115,6 +118,15 @@ namespace StonksAccounting
                     _accountingData.CurrentDayTransaction.onlineLoss += _unit_Amount;
                 }
 
+                return true;
+            }
+        }
+        [HarmonyPatch(typeof(MoneyManager), "ReceiveOnlineTransaction")]
+        public static class MoneyManager_ReceiveOnlineTransaction_Patch
+        {
+            public static bool Prefix(MoneyManager __instance, string _transaction_Name, float _unit_Amount, float _quantity, string _transaction_Note)
+            {
+                MelonLogger.Msg($"RECEIVE Online Transaction! Name: {_transaction_Name}, amount: {_unit_Amount}, quantity: {_quantity}, note: {_transaction_Note}");
                 return true;
             }
         }
@@ -321,7 +333,7 @@ namespace StonksAccounting
             LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
             _accountingData.CashBalance = moneyManager.cashInstance.Balance;
             _accountingData.OnlineBalance = moneyManager.onlineBalance;
-            Transactions transactions = new Transactions
+            AccountingTransactions transactions = new AccountingTransactions
             {
                 startCash = moneyManager.cashInstance.Balance,
                 startOnline = moneyManager.onlineBalance
@@ -388,11 +400,11 @@ namespace StonksAccounting
                 text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 text.alignment = TextAnchor.MiddleCenter;
                 text.color = Color.black;
-                text.fontSize = 24;
-                textRT.anchorMin = new Vector2(0.5f, 0.9f);
-                textRT.anchorMax = new Vector2(0.5f, 0.9f);
+                text.fontSize = 40;
+                textRT.anchorMin = new Vector2(0.5f, 0.95f);
+                textRT.anchorMax = new Vector2(0.5f, 0.95f);
                 textRT.anchoredPosition = Vector2.zero;
-                textRT.sizeDelta = new Vector2(200, 50);
+                textRT.sizeDelta = new Vector2(500, 50);
 
 
                 float _cashGain = _accountingData.CurrentDayTransaction.cashGain;
@@ -400,49 +412,89 @@ namespace StonksAccounting
                 float _onlineGain = _accountingData.CurrentDayTransaction.onlineGain;
                 float _onlineLoss = _accountingData.CurrentDayTransaction.onlineLoss;
 
-                // CashGains Textd
-                GameObject CashGainGO = new GameObject("CashGainText");
+                string negativeMark = "-";
+
+                // TodayCashGains Text
+                GameObject CashGainGO = new GameObject("TodayCashGainText");
                 CashGainGO.transform.SetParent(container.transform, false);
                 RectTransform CashGainRT = CashGainGO.AddComponent<RectTransform>();
                 Text CashGain = CashGainGO.AddComponent<Text>();
-                CashGain.text = $"Cash +{_cashGain}$, {_cashLoss}$ = {_cashGain + _cashLoss}$";
+                CashGain.text = $"Cash Today:\n+{_cashGain}$\n{((_cashLoss == 0) ? negativeMark : "")}{_cashLoss}$\n= {_cashGain + _cashLoss}$";
                 CashGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                CashGain.alignment = TextAnchor.MiddleLeft;
+                CashGain.alignment = TextAnchor.MiddleRight;
                 CashGain.color = Color.black;
-                CashGain.fontSize = 24;
-                CashGainRT.anchorMin = new Vector2(0.5f, 0.75f);
-                CashGainRT.anchorMax = new Vector2(0.5f, 0.75f);
+                CashGain.fontSize = 35;
+                CashGainRT.anchorMin = new Vector2(0.1f, 0.70f);
+                CashGainRT.anchorMax = new Vector2(0.1f, 0.70f);
                 CashGainRT.anchoredPosition = Vector2.zero;
-                CashGainRT.sizeDelta = new Vector2(600, 50);
-                // OnlineGains Textd
-                GameObject OnlineGainGO = new GameObject("OnlineGainText");
+                CashGainRT.sizeDelta = new Vector2(300, 300);
+
+                // OnlineGains Text
+                GameObject OnlineGainGO = new GameObject("TodayOnlineGainText");
                 OnlineGainGO.transform.SetParent(container.transform, false);
                 RectTransform OnlineGainRT = OnlineGainGO.AddComponent<RectTransform>();
                 Text OnlineGain = OnlineGainGO.AddComponent<Text>();
-                OnlineGain.text = $"Online +{_onlineGain}$, {_onlineLoss}$ = {_onlineGain + _onlineLoss}$";
+                OnlineGain.text = $"Online Today:\n+{_onlineGain}$\n{((_onlineLoss == 0) ? negativeMark : "")}{_onlineLoss}$\n= {_onlineGain + _onlineLoss}$";
                 OnlineGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                OnlineGain.alignment = TextAnchor.MiddleLeft;
+                OnlineGain.alignment = TextAnchor.MiddleRight;
                 OnlineGain.color = Color.black;
-                OnlineGain.fontSize = 24;
-                OnlineGainRT.anchorMin = new Vector2(0.5f, 0.62f);
-                OnlineGainRT.anchorMax = new Vector2(0.5f, 0.62f);
+                OnlineGain.fontSize = 35;
+                OnlineGainRT.anchorMin = new Vector2(0.45f, 0.70f);
+                OnlineGainRT.anchorMax = new Vector2(0.45f, 0.70f);
                 OnlineGainRT.anchoredPosition = Vector2.zero;
-                OnlineGainRT.sizeDelta = new Vector2(600, 50);
+                OnlineGainRT.sizeDelta = new Vector2(300, 300);
 
                 // TotalGains Textd
-                GameObject TotalGainGO = new GameObject("TotalGainText");
+                GameObject TotalGainGO = new GameObject("TodayTotalGainText");
                 TotalGainGO.transform.SetParent(container.transform, false);
                 RectTransform TotalGainRT = TotalGainGO.AddComponent<RectTransform>();
                 Text TotalGain = TotalGainGO.AddComponent<Text>();
-                TotalGain.text = $"Total +{_onlineGain + _cashGain}$, {_onlineLoss + _cashLoss}$ = {(_onlineGain + _cashGain) + (_onlineLoss + _cashLoss)}$";
+                TotalGain.text = $"Total Today:\n+{_onlineGain + _cashGain}$\n{((_onlineLoss + _cashLoss == 0) ? negativeMark : "")}{_onlineLoss + _cashLoss}$\n= {(_onlineGain + _cashGain) + (_onlineLoss + _cashLoss)}$";
                 TotalGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                TotalGain.alignment = TextAnchor.MiddleRight;
                 TotalGain.color = Color.black;
-                TotalGain.fontSize = 24;
-                TotalGainRT.anchorMin = new Vector2(0.5f, 0.50f);
-                TotalGainRT.anchorMax = new Vector2(0.5f, 0.50f);
+                TotalGain.fontSize = 35;
+                TotalGainRT.anchorMin = new Vector2(0.8f, 0.70f);
+                TotalGainRT.anchorMax = new Vector2(0.8f, 0.70f);
                 TotalGainRT.anchoredPosition = Vector2.zero;
-                TotalGainRT.sizeDelta = new Vector2(600, 50);
+                TotalGainRT.sizeDelta = new Vector2(300, 300);
 
+                // SevenDayTotal Text
+                float _cashGain7 = _accountingData.GetSevenDayCash(true);
+                float _cashLoss7 = _accountingData.GetSevenDayCash(false);
+                float _onlineGain7 = _accountingData.GetSevenDayOnline(true);
+                float _onlineLoss7 = _accountingData.GetSevenDayOnline(false);
+                string disclaimer = (_accountingData.TransactionHistory.Count < 6) ? $"({_accountingData.TransactionHistory.Count + 1} in history)" : "";
+                
+                GameObject SevenDayTotalGO = new GameObject("SevenDayTotalText");
+                SevenDayTotalGO.transform.SetParent(container.transform, false);
+                RectTransform SevenDayTotalRT = SevenDayTotalGO.AddComponent<RectTransform>();
+                Text SevenDayTotal = SevenDayTotalGO.AddComponent<Text>();
+                SevenDayTotal.text = $"7 day Total{disclaimer}:\n+{_cashGain7+_onlineGain7}$\n{((_cashLoss7 + _onlineLoss7 == 0) ? negativeMark : "")}{_onlineLoss7 + _cashLoss7}$\n= {(_onlineGain7 + _cashGain7) + (_onlineLoss7 + _cashLoss7)}$";
+                SevenDayTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                SevenDayTotal.alignment = TextAnchor.MiddleRight;
+                SevenDayTotal.color = Color.black;
+                SevenDayTotal.fontSize = 35;
+                SevenDayTotalRT.anchorMin = new Vector2(0.3f, 0.30f);
+                SevenDayTotalRT.anchorMax = new Vector2(0.3f, 0.30f);
+                SevenDayTotalRT.anchoredPosition = Vector2.zero;
+                SevenDayTotalRT.sizeDelta = new Vector2(300, 300);
+
+                GameObject GrandTotalGO = new GameObject("GrandTotalText");
+                GrandTotalGO.transform.SetParent(container.transform, false);
+                RectTransform GrandTotalRT = GrandTotalGO.AddComponent<RectTransform>();
+                Text GrandTotal = GrandTotalGO.AddComponent<Text>();
+                GrandTotal.text = $"Grand Total:\nWIP";
+                GrandTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                GrandTotal.alignment = TextAnchor.MiddleRight;
+                GrandTotal.color = Color.black;
+                GrandTotal.fontSize = 35;
+                GrandTotalRT.anchorMin = new Vector2(0.7f, 0.30f);
+                GrandTotalRT.anchorMax = new Vector2(0.7f, 0.30f);
+                GrandTotalRT.anchoredPosition = Vector2.zero;
+                GrandTotalRT.sizeDelta = new Vector2(300, 300);
+
+                #region button example
                 //// Button
                 //GameObject buttonGO = new GameObject("ClickMeButton");
                 //buttonGO.transform.SetParent(container.transform, false);
@@ -474,6 +526,7 @@ namespace StonksAccounting
 
                 //void FuncThatCallsFunc() => Click();
                 //button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
+                #endregion
             }
             catch (Exception ex)
             {

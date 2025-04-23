@@ -8,13 +8,117 @@ namespace StonksAccounting
 {
     public class AccountingData
     {
+        /// <summary>
+        /// The current cash balance of the player.
+        /// </summary>
         public float CashBalance { get; set; }
+        /// <summary>
+        /// The current online balance of the player.
+        /// </summary>
         public float OnlineBalance { get; set; }
-        public Transactions? CurrentDayTransaction { get; set; } = new Transactions();
-        public Dictionary<int, Transactions> TransactionHistory { get; set; } = new Dictionary<int, Transactions>();
+        /// <summary>
+        /// Current day's transactions (gains/losses on cash and online).
+        /// </summary>
+        public AccountingTransactions CurrentDayTransaction { get; set; } = new AccountingTransactions();
+        /// <summary>
+        /// A dictionary to store the transaction history, where the key is the day number and the value is a Transactions object.
+        /// </summary>
+        public Dictionary<int, AccountingTransactions> TransactionHistory { get; set; } = new Dictionary<int, AccountingTransactions>();
+
+        /// <summary>
+        /// Gets the cash gain/loss for the last 7 days, including today.
+        /// </summary>
+        /// <param name="isGain">Do we get Gain or Loss</param>
+        /// <returns></returns>
+        public float GetSevenDayCash(bool isGain)
+        {
+            float amount = 0f;
+
+            //Add the current day's transactions to the amount
+            if (isGain)
+                amount += CurrentDayTransaction.cashGain;
+            else
+                amount += CurrentDayTransaction.cashLoss;
+
+            //If we have less than 6 transactions, we can just add them all
+            if (TransactionHistory.Count < 6)
+            {
+                foreach (var transaction in TransactionHistory)
+                {
+                    if (isGain)
+                        amount += transaction.Value.cashGain;
+                    else
+                        amount += transaction.Value.cashLoss;
+                }
+            }
+            else
+            {
+                // Order the dictionary by Key in descending order
+                var orderedTransactions = TransactionHistory
+                    .OrderByDescending(x => x.Key)
+                    .ToList(); // Convert to a list to preserve the order
+
+                // Iterate over the last 6 transactions
+                for (int i = 0; i < 6; i++)
+                {
+                    if (isGain)
+                        amount += orderedTransactions[i].Value.cashGain;
+                    else
+                        amount += orderedTransactions[i].Value.cashLoss;
+                }
+            }
+
+            return amount;
+        }
+
+        /// <summary>
+        /// Gets the online gain/loss for the last 7 days, including today.
+        /// </summary>
+        /// <param name="isGain">Do we get Gain or Loss</param>
+        /// <returns></returns>
+        public float GetSevenDayOnline(bool isGain)
+        {
+            float amount = 0f;
+
+            //Add the current day's transactions to the amount
+            if (isGain)
+                amount += CurrentDayTransaction.onlineGain;
+            else
+                amount += CurrentDayTransaction.onlineLoss;
+
+            //If we have less than 6 transactions, we can just add them all
+            if (TransactionHistory.Count < 6)
+            {
+                foreach (var transaction in TransactionHistory)
+                {
+                    if (isGain)
+                        amount += transaction.Value.onlineGain;
+                    else
+                        amount += transaction.Value.onlineLoss;
+                }
+            }
+            else
+            {
+                // Order the dictionary by Key in descending order
+                var orderedTransactions = TransactionHistory
+                    .OrderByDescending(x => x.Key)
+                    .ToList(); // Convert to a list to preserve the order
+
+                // Iterate over the last 6 transactions
+                for (int i = 0; i < 6; i++)
+                {
+                    if (isGain)
+                        amount += orderedTransactions[i].Value.onlineGain;
+                    else
+                        amount += orderedTransactions[i].Value.onlineLoss;
+                }
+            }
+
+            return amount;
+        }
     }
 
-    public class Transactions
+    public class AccountingTransactions
     {
         public float cashGain;
         public float cashLoss;
