@@ -92,10 +92,17 @@ namespace StonksAccounting
             {
                 MelonLogger.Msg($"FastForwardToWakeTime! Today is {__instance.ElapsedDays}"); //THIS IS FINE WAY TO END/START DAY (untill I find where's the proper "endDay" call)
 
-                _accountingData.TransactionHistory.Add(__instance.ElapsedDays, _accountingData.CurrentDayTransaction);
-                _accountingData.CurrentDayTransaction = new AccountingTransactions();
+                if (_accountingData.TransactionHistory.ContainsKey(__instance.ElapsedDays))
+                {
+                    MelonLogger.Msg($"We already have a transaction for today, skipping adding it to history.");
+                }
+                else
+                {
+                    MelonLogger.Msg($"Added yesterday's Transactions to history, and starting a new Transactions for today. Our history is {_accountingData.TransactionHistory.Count} long.");
+                    _accountingData.TransactionHistory.Add(__instance.ElapsedDays, _accountingData.CurrentDayTransaction);
+                    _accountingData.CurrentDayTransaction = new AccountingTransactions();
+                }
 
-                MelonLogger.Msg($"Added yesterday's Transactions to history, and starting a new Transactions for today. Our history is {_accountingData.TransactionHistory.Count} long.");
                 SaveData();
             }
         }
