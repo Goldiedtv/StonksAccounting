@@ -16,6 +16,9 @@ using Il2CppScheduleOne.Persistence;
 using Il2CppScheduleOne.GameTime;
 using Il2CppSystem.IO;
 using System.Xml.Serialization;
+using System.Runtime.InteropServices.ComTypes;
+using System.Xml;
+using Newtonsoft.Json;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -29,7 +32,7 @@ namespace StonksAccounting
         public const string Description = "Simple accounting mod";
         public const string Author = "Goldie";
         public const string Company = null;
-        public const string Version = "0.1";
+        public const string Version = "0.5";
         public const string DownloadLink = null;
     }
     public class StonksAccountingMod : MelonMod
@@ -38,12 +41,11 @@ namespace StonksAccounting
         {
             try
             {
-                string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.xml");
-                var serializer = new XmlSerializer(typeof(AccountingData));
-                using (var writer = new System.IO.StreamWriter(dataPath))
-                {
-                    serializer.Serialize(writer, _accountingData);
-                }
+                MelonLogger.Msg($"Saving JSON...");
+                string json = JsonConvert.SerializeObject(_accountingData, Newtonsoft.Json.Formatting.Indented);
+                string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.json");
+                Il2CppSystem.IO.File.WriteAllText(dataPath, json);
+                MelonLogger.Msg($"JSON Saved!");
             }
             catch (Exception ex)
             {
@@ -54,12 +56,12 @@ namespace StonksAccounting
         {
             try
             {
-                string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.xml");
-                var serializer = new XmlSerializer(typeof(AccountingData));
-                using (var reader = new System.IO.StreamReader(dataPath))
-                {
-                    return (AccountingData)serializer.Deserialize(reader);
-                }
+                MelonLogger.Msg($"Loading JSON...");
+                string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.json");
+                string jsonFromFile = Il2CppSystem.IO.File.ReadAllText(dataPath);
+                var loadedData = JsonConvert.DeserializeObject<AccountingData>(jsonFromFile);
+                MelonLogger.Msg($"JSON Loaded!");
+                return loadedData ?? new AccountingData();
             }
             catch (Exception ex)
             {
@@ -69,7 +71,7 @@ namespace StonksAccounting
         }
         public static bool LoadDataExists()
         {
-            string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.xml");
+            string dataPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonksData.json");
             return Il2CppSystem.IO.File.Exists(dataPath);
         }
 
@@ -94,6 +96,7 @@ namespace StonksAccounting
                 _accountingData.CurrentDayTransaction = new AccountingTransactions();
 
                 MelonLogger.Msg($"Added yesterday's Transactions to history, and starting a new Transactions for today. Our history is {_accountingData.TransactionHistory.Count} long.");
+                SaveData();
             }
         }
 
