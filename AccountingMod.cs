@@ -203,13 +203,13 @@ namespace StonksAccounting
         }
 
         private bool _isInTargetScene;
-        private GameObject _player;
+        private GameObject? _player;
         private bool _iconModified;
         private bool _appCreated;
         private bool _initializationCoroutineStarted;
-        private GameObject _myCustomAppPanel;
+        private GameObject? _myCustomAppPanel;
 
-        private GameObject _customAppContainer;
+        private GameObject? _customAppContainer;
         private static bool updateStonks = false;
 
         public override void OnInitializeMelon()
@@ -331,7 +331,7 @@ namespace StonksAccounting
                 _myCustomAppPanel = Object.Instantiate(templateApp.gameObject, appsCanvas.transform);
                 _myCustomAppPanel.name = "MyCustomApp";
                 Transform containerTransform = _myCustomAppPanel.transform.Find("Container");
-                GameObject container = containerTransform != null ? containerTransform.gameObject : null;
+                GameObject? container = containerTransform != null ? containerTransform.gameObject : null;
                 if (container != null)
                 {
                     _customAppContainer = container;
@@ -393,10 +393,10 @@ namespace StonksAccounting
         {
             if (!_appCreated)
             {
-                GameObject container = appPanel?.transform.Find("Container")?.gameObject;
+                GameObject? container = appPanel?.transform.Find("Container")?.gameObject;
                 if (container != null && container.transform.childCount < 2)
                 {
-                    LoggerInstance.Msg("Rebuilding UI in existing panel '" + appPanel.name + "'...");
+                    LoggerInstance.Msg("Rebuilding UI in existing panel '" + appPanel?.name + "'...");
                     HideDefaultAppUI(container);
                     BuildCustomAppUI(container);
                 }
@@ -613,7 +613,7 @@ namespace StonksAccounting
                 return false;
             }
 
-            Transform lastIconTransform = icons.LastOrDefault();
+            Transform? lastIconTransform = icons.LastOrDefault();
             if (lastIconTransform == null)
             {
                 logger?.Error("Could not get the last icon transform.");
@@ -622,7 +622,7 @@ namespace StonksAccounting
 
             GameObject lastIcon = lastIconTransform.gameObject;
             Transform labelTransform = lastIcon.transform.Find("Label");
-            Text labelText = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
+            Text? labelText = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
             if (labelText != null)
             {
                 labelText.text = targetLabelText;
@@ -636,11 +636,11 @@ namespace StonksAccounting
             return ChangeAppIconImage(lastIcon, logger);
         }
 
-        private bool ChangeAppIconImage(GameObject appIconGameObject, MelonLogger.Instance logger)
+        private bool ChangeAppIconImage(GameObject appIconGameObject, MelonLogger.Instance? logger)
         {
             if (appIconGameObject == null) return false;
             Transform imageTransform = appIconGameObject.transform.Find("Mask/Image");
-            Image image = imageTransform != null ? imageTransform.GetComponent<Image>() : null;
+            Image? image = imageTransform != null ? imageTransform.GetComponent<Image>() : null;
             if (image == null)
             {
                 if (logger != null)
@@ -649,7 +649,7 @@ namespace StonksAccounting
                 }
                 return false;
             }
-            Texture2D customTexture = LoadCustomTexture(logger);
+            Texture2D? customTexture = LoadCustomTexture(logger);
             if (customTexture != null)
             {
                 Sprite customSprite = Sprite.Create(customTexture, new Rect(0f, 0f, customTexture.width, customTexture.height), new Vector2(0.5f, 0.5f));
@@ -666,7 +666,7 @@ namespace StonksAccounting
             return true; // Proceed with default image if custom fails
         }
 
-        private Texture2D LoadCustomTexture(MelonLogger.Instance logger)
+        private Texture2D? LoadCustomTexture(MelonLogger.Instance? logger)
         {
             string iconPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "SilkroadIcon.png");
             if (!Il2CppSystem.IO.File.Exists(iconPath))

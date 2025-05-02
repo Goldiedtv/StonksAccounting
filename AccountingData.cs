@@ -120,6 +120,7 @@ namespace StonksAccounting
 
     public class AccountingTransactions
     {
+        public int dayNumber;
         public float cashGain;
         public float cashLoss;
 
