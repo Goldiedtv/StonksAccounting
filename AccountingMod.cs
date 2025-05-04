@@ -19,6 +19,9 @@ using System.Xml.Serialization;
 using System.Runtime.InteropServices.ComTypes;
 using System.Xml;
 using Newtonsoft.Json;
+using UnityEngine.Playables;
+using Plot = ScottPlot.Plot;
+using Il2Cpp;
 
 [assembly: MelonInfo(typeof(StonksAccounting.StonksAccountingMod), StonksAccounting.BuildInfo.Name, StonksAccounting.BuildInfo.Version, StonksAccounting.BuildInfo.Author, StonksAccounting.BuildInfo.DownloadLink)]
 [assembly: MelonColor(255, 255, 165, 0)]
@@ -215,6 +218,7 @@ namespace StonksAccounting
         public override void OnInitializeMelon()
         {
             LoggerInstance.Msg(Info.Name + " v" + Info.Version + " Initialized.");
+            GenerateGraph();
         }
 
         public override void OnDeinitializeMelon()
@@ -419,6 +423,41 @@ namespace StonksAccounting
                     Object.Destroy(child.gameObject);
                 }
             }
+        }
+
+        private void GenerateGraph()
+        {
+            LoggerInstance.Msg("Attempting to Generate Scottplot...");
+            var plt = new Plot();
+            var xList = new List<double>();
+            var yList = new List<double>();
+            System.Random r = new System.Random();
+            for (int i = 1; i < 8; i++)
+            {
+                xList.Add(i);
+                yList.Add(r.Next(1000, 2000));
+            }
+
+            var scatter = plt.Add.Scatter(xList, yList);
+            // plt.Grid.XAxis.IsVisible = false;
+            // plt.Grid.YAxis.IsVisible = true;
+            scatter.Smooth = true;
+
+            plt.XLabel("Day", 30);
+            plt.YLabel("Money", 30);
+            
+            plt.Grid.XAxisStyle.IsVisible = false;
+            plt.Grid.YAxisStyle.IsVisible = true;
+
+            plt.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericFixedInterval(1);
+
+            scatter.LineWidth = 5;
+            scatter.MarkerSize = 10;
+            var bmap = plt.GetImage(600, 400);
+            string savePath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "plot.png");
+            bmap.Save(savePath);
+
+            LoggerInstance.Msg($"Scottplot saved to {savePath}!");
         }
 
         private void BuildCustomAppUI(GameObject container)
