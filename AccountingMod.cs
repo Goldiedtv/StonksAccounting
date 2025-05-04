@@ -85,6 +85,8 @@ namespace StonksAccounting
         //MoneyManager.onlineBalance pankissa
 
         public static AccountingData _accountingData = new AccountingData();
+
+        public static MoneyManager? _moneyManager;
         public bool _isMoneyInit = false;
 
         //TimeManager.ElapsedDays This is the current day number
@@ -95,16 +97,24 @@ namespace StonksAccounting
             {
                 MelonLogger.Msg($"FastForwardToWakeTime! Today is {__instance.ElapsedDays}"); //THIS IS FINE WAY TO END/START DAY (untill I find where's the proper "endDay" call)
 
-                if (_accountingData.TransactionHistory.ContainsKey(__instance.ElapsedDays))
+                if (__instance.ElapsedDays > _accountingData.CurrentDayTransaction.dayNumber)
                 {
-                    MelonLogger.Msg($"We already have a transaction for today, skipping adding it to history.");
+                    _accountingData.CurrentDayTransaction.endCash = _moneyManager.cashInstance.Balance;
+                    _accountingData.CurrentDayTransaction.endOnline = _moneyManager.onlineBalance;
+
+                    _accountingData.TransactionHistory[_accountingData.CurrentDayTransaction.dayNumber] = _accountingData.CurrentDayTransaction;
+                    AccountingTransactions transactions = new AccountingTransactions
+                    {
+                        startCash = _moneyManager.cashInstance.Balance,
+                        startOnline = _moneyManager.onlineBalance,
+                        dayNumber = __instance.ElapsedDays
+                    };
+                    _accountingData.CurrentDayTransaction = transactions;
+
+                    MelonLogger.Msg($"ElapsedDays > currentDayTransactionDay! Adding old one to history and creating a new one! Our history is {_accountingData.TransactionHistory.Count} long.");
                 }
                 else
-                {
-                    MelonLogger.Msg($"Added yesterday's Transactions to history, and starting a new Transactions for today. Our history is {_accountingData.TransactionHistory.Count} long.");
-                    _accountingData.TransactionHistory.Add(__instance.ElapsedDays, _accountingData.CurrentDayTransaction);
-                    _accountingData.CurrentDayTransaction = new AccountingTransactions();
-                }
+                    MelonLogger.Msg($"ElapsedDays is not greater than currentDayTransactionDay, not adding to history yet!");
 
                 SaveData();
             }
@@ -218,7 +228,6 @@ namespace StonksAccounting
         public override void OnInitializeMelon()
         {
             LoggerInstance.Msg(Info.Name + " v" + Info.Version + " Initialized.");
-            GenerateGraph();
         }
 
         public override void OnDeinitializeMelon()
@@ -332,6 +341,7 @@ namespace StonksAccounting
                     LoggerInstance.Error("Cannot create app: 'ProductManagerApp' template not found.");
                     return;
                 }
+
                 _myCustomAppPanel = Object.Instantiate(templateApp.gameObject, appsCanvas.transform);
                 _myCustomAppPanel.name = "MyCustomApp";
                 Transform containerTransform = _myCustomAppPanel.transform.Find("Container");
@@ -368,9 +378,9 @@ namespace StonksAccounting
             }
 
             var moneyManagerObject = GameObject.Find("@Money");
-            var moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
+            _moneyManager = moneyManagerObject.GetComponent<MoneyManager>();
 
-            LoggerInstance.Msg($"We have {moneyManager.cashInstance.Balance} in CASH and {moneyManager.onlineBalance} in BANK. Total Value {moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {moneyManager.LifetimeEarnings}");
+            LoggerInstance.Msg($"We have {_moneyManager.cashInstance.Balance} in CASH and {_moneyManager.onlineBalance} in BANK. Total Value {_moneyManager.LastCalculatedNetworth}. LifetimeEarnings: {_moneyManager.LifetimeEarnings}");
 
             if (LoadDataExists())
             {
@@ -381,15 +391,18 @@ namespace StonksAccounting
             else
             {
                 LoggerInstance.Msg("No data found, creating new data.");
-                _accountingData.CashBalance = moneyManager.cashInstance.Balance;
-                _accountingData.OnlineBalance = moneyManager.onlineBalance;
+                var timeManagerObject = GameObject.Find("@Time");
+                var timeManager = timeManagerObject.GetComponent<TimeManager>();
+                _accountingData.CashBalance = _moneyManager.cashInstance.Balance;
+                _accountingData.OnlineBalance = _moneyManager.onlineBalance;
                 AccountingTransactions transactions = new AccountingTransactions
                 {
-                    startCash = moneyManager.cashInstance.Balance,
-                    startOnline = moneyManager.onlineBalance
+                    startCash = _moneyManager.cashInstance.Balance,
+                    startOnline = _moneyManager.onlineBalance,
+                    dayNumber = timeManager.ElapsedDays
                 };
                 _accountingData.CurrentDayTransaction = transactions;
-
+                LoggerInstance.Msg("Data Created!");
             }
         }
 
@@ -425,17 +438,48 @@ namespace StonksAccounting
             }
         }
 
-        private void GenerateGraph()
+        private byte[]? GenerateGraph()
         {
-            LoggerInstance.Msg("Attempting to Generate Scottplot...");
             var plt = new Plot();
             var xList = new List<double>();
             var yList = new List<double>();
-            System.Random r = new System.Random();
-            for (int i = 1; i < 8; i++)
+            // System.Random r = new System.Random();
+            // for (int i = 1; i < 8; i++)
+            // {
+            //     xList.Add(i);
+            //     yList.Add(r.Next(1000, 2000));
+            // }
+
+            if (_accountingData == null)
+                return null;
+
+            if (_accountingData.TransactionHistory.Count == 0)
             {
-                xList.Add(i);
-                yList.Add(r.Next(1000, 2000));
+                xList.Add(_accountingData.CurrentDayTransaction.dayNumber);
+                float total = 0;
+                if (graphState == 0)
+                    total = _accountingData.CurrentDayTransaction.cashGain + _accountingData.CurrentDayTransaction.cashLoss + _accountingData.CurrentDayTransaction.onlineGain + _accountingData.CurrentDayTransaction.onlineLoss;
+                else
+                    total = _accountingData.CurrentDayTransaction.startCash + _accountingData.CurrentDayTransaction.startOnline + _accountingData.CurrentDayTransaction.cashGain + _accountingData.CurrentDayTransaction.cashLoss + _accountingData.CurrentDayTransaction.onlineGain + _accountingData.CurrentDayTransaction.onlineLoss;
+
+                yList.Add(total);
+            }
+            else
+            {
+                Dictionary<int, float> data = new Dictionary<int, float>();
+                if (graphState == 0)
+                    data = _accountingData.GetSevenDayTotalProfitPerDayForGraph();
+                else
+                    data = _accountingData.GetSevenDayTotalMoneyPerDayForGraph();
+                var orderedTransactions = data
+                    .OrderByDescending(x => x.Key)
+                    .ToList(); // Convert to a list to preserve the order
+
+                foreach (var d in orderedTransactions)
+                {
+                    xList.Add(d.Key);
+                    yList.Add(d.Value);
+                }
             }
 
             var scatter = plt.Add.Scatter(xList, yList);
@@ -444,7 +488,10 @@ namespace StonksAccounting
             scatter.Smooth = true;
 
             plt.XLabel("Day", 30);
-            plt.YLabel("Money", 30);
+            if (graphState == 0)
+                plt.YLabel("Profits", 30);
+            else
+                plt.YLabel("Total Money", 30);
             
             plt.Grid.XAxisStyle.IsVisible = false;
             plt.Grid.YAxisStyle.IsVisible = true;
@@ -454,28 +501,28 @@ namespace StonksAccounting
             scatter.LineWidth = 5;
             scatter.MarkerSize = 10;
             var bmap = plt.GetImage(600, 400);
-            string savePath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "plot.png");
-            bmap.Save(savePath);
-
-            LoggerInstance.Msg($"Scottplot saved to {savePath}!");
+            // string savePath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "plot.png");
+            // bmap.Save(savePath);
+            return bmap.GetImageBytes();
         }
 
-        private void BuildCustomAppUI(GameObject container)
-        {
-            try
-            {
-                LoggerInstance.Msg("BuildCustomAppUI: Starting setup.");
+        bool showGraph = false;
+        int graphState = 0;
 
-                // Background Text
+        private void BuildCustomAppUITexts(GameObject container)
+        {
+            LoggerInstance.Msg("BuildCustomAppUI: Starting setup.");
+
+                // Background
                 GameObject bgGO = new GameObject("AppBackground");
                 bgGO.transform.SetParent(container.transform, false);
                 RectTransform bgRT = bgGO.AddComponent<RectTransform>();
                 Image bg = bgGO.AddComponent<Image>();
                 bg.color = Color.white;
-                bgRT.anchorMin = new Vector2(0.5f, 0.5f);
-                bgRT.anchorMax = new Vector2(0.5f, 0.5f);
+                bgRT.anchorMin = new Vector2(0.0f, 0.0f);
+                bgRT.anchorMax = new Vector2(1.0f, 1.0f);
                 bgRT.anchoredPosition = Vector2.zero;
-                bgRT.sizeDelta = new Vector2(1400, 700);
+                bgRT.sizeDelta = new Vector2(100, 100);
 
                 // Title Text
                 GameObject textGO = new GameObject("AppTitleText");
@@ -580,39 +627,137 @@ namespace StonksAccounting
                 GrandTotalRT.anchoredPosition = Vector2.zero;
                 GrandTotalRT.sizeDelta = new Vector2(300, 300);
 
-                #region button example
-                //// Button
-                //GameObject buttonGO = new GameObject("ClickMeButton");
-                //buttonGO.transform.SetParent(container.transform, false);
-                //RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
-                //Image buttonImage = buttonGO.AddComponent<Image>();
-                //buttonImage.color = Color.gray;
-                //Button button = buttonGO.AddComponent<Button>();
+                // Button
+                GameObject buttonGO = new GameObject("ShowGraphButton");
+                buttonGO.transform.SetParent(container.transform, false);
+                RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
+                Image buttonImage = buttonGO.AddComponent<Image>();
+                buttonImage.color = Color.gray;
+                Button button = buttonGO.AddComponent<Button>();
 
-                //// Button text
-                //GameObject buttonTextGO = new GameObject("ButtonText");
-                //buttonTextGO.transform.SetParent(buttonGO.transform, false);
-                //RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
-                //Text buttonText = buttonTextGO.AddComponent<Text>();
-                //buttonText.text = "Refresh";
-                //buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                //buttonText.alignment = TextAnchor.MiddleCenter;
-                //buttonText.color = Color.black;
-                //buttonText.fontSize = 18;
-                //buttonTextRT.anchorMin = Vector2.zero;
-                //buttonTextRT.anchorMax = Vector2.one;
-                //buttonTextRT.offsetMin = Vector2.zero;
-                //buttonTextRT.offsetMax = Vector2.zero;
+                // Button text
+                GameObject buttonTextGO = new GameObject("ShowGraphButtonText");
+                buttonTextGO.transform.SetParent(buttonGO.transform, false);
+                RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
+                Text buttonText = buttonTextGO.AddComponent<Text>();
+                buttonText.text = "Graph";
+                buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                buttonText.alignment = TextAnchor.MiddleCenter;
+                buttonText.color = Color.black;
+                buttonText.fontSize = 18;
+                buttonTextRT.anchorMin = Vector2.zero;
+                buttonTextRT.anchorMax = Vector2.one;
+                buttonTextRT.offsetMin = Vector2.zero;
+                buttonTextRT.offsetMax = Vector2.zero;
 
-                //// Button position
-                //buttonRT.anchorMin = new Vector2(0.5f, 0.25f);
-                //buttonRT.anchorMax = new Vector2(0.5f, 0.25f);
-                //buttonRT.anchoredPosition = Vector2.zero;
-                //buttonRT.sizeDelta = new Vector2(160, 50);
+                // Button position
+                buttonRT.anchorMin = new Vector2(0.5f, 0.1f);
+                buttonRT.anchorMax = new Vector2(0.5f, 0.1f);
+                buttonRT.anchoredPosition = Vector2.zero;
+                buttonRT.sizeDelta = new Vector2(160, 50);
 
-                //void FuncThatCallsFunc() => Click();
-                //button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
-                #endregion
+                void FuncThatCallsFunc() => ClickToGraph();
+                button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
+        }
+        private void BuildCustomAppUIGraph(GameObject container)
+        {
+                // Background
+                GameObject bgGO = new GameObject("AppBackground");
+                bgGO.transform.SetParent(container.transform, false);
+                RectTransform bgRT = bgGO.AddComponent<RectTransform>();
+                Image bg = bgGO.AddComponent<Image>();
+                bg.color = Color.white;
+                bgRT.anchorMin = new Vector2(0.0f, 0.0f);
+                bgRT.anchorMax = new Vector2(1.0f, 1.0f);
+                bgRT.anchoredPosition = Vector2.zero;
+                bgRT.sizeDelta = new Vector2(100, 100);
+
+                // Graph
+                GameObject graphGO = new GameObject("GraphCustom");
+                graphGO.transform.SetParent(container.transform, false);
+                RectTransform graphRT = graphGO.AddComponent<RectTransform>();
+                Image graph = graphGO.AddComponent<Image>();
+                Texture2D tex = new Texture2D(2, 2);
+                tex.LoadImage(GenerateGraph());
+                graph.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                graphRT.anchorMin = new Vector2(0.30f, 0.4f);
+                graphRT.anchorMax = new Vector2(0.75f, 0.7f);
+                graphRT.anchoredPosition = Vector2.zero;
+                graphRT.sizeDelta = new Vector2(600, 400);
+
+                // Button
+                GameObject buttonGO = new GameObject("ShowTextshButton");
+                buttonGO.transform.SetParent(container.transform, false);
+                RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
+                Image buttonImage = buttonGO.AddComponent<Image>();
+                buttonImage.color = Color.gray;
+                Button button = buttonGO.AddComponent<Button>();
+
+                // Button text
+                GameObject buttonTextGO = new GameObject("ShowTextsButtonText");
+                buttonTextGO.transform.SetParent(buttonGO.transform, false);
+                RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
+                Text buttonText = buttonTextGO.AddComponent<Text>();
+                buttonText.text = "Texts";
+                buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                buttonText.alignment = TextAnchor.MiddleCenter;
+                buttonText.color = Color.black;
+                buttonText.fontSize = 18;
+                buttonTextRT.anchorMin = Vector2.zero;
+                buttonTextRT.anchorMax = Vector2.one;
+                buttonTextRT.offsetMin = Vector2.zero;
+                buttonTextRT.offsetMax = Vector2.zero;
+
+                // Button position
+                buttonRT.anchorMin = new Vector2(0.5f, 0.1f);
+                buttonRT.anchorMax = new Vector2(0.5f, 0.1f);
+                buttonRT.anchoredPosition = Vector2.zero;
+                buttonRT.sizeDelta = new Vector2(160, 50);
+
+                                // Button 2
+                GameObject buttonGO2 = new GameObject("ShowGraph2Button");
+                buttonGO2.transform.SetParent(container.transform, false);
+                RectTransform buttonRT2 = buttonGO2.AddComponent<RectTransform>();
+                Image buttonImage2 = buttonGO2.AddComponent<Image>();
+                buttonImage2.color = Color.gray;
+                Button button2 = buttonGO2.AddComponent<Button>();
+
+                // Button text 2
+                GameObject buttonTextGO2 = new GameObject("ShowGraphButtonText");
+                buttonTextGO2.transform.SetParent(buttonGO2.transform, false);
+                RectTransform buttonTextRT2 = buttonTextGO2.AddComponent<RectTransform>();
+                Text buttonText2 = buttonTextGO2.AddComponent<Text>();
+                buttonText2.text = "Next Graph";
+                buttonText2.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+                buttonText2.alignment = TextAnchor.MiddleCenter;
+                buttonText2.color = Color.black;
+                buttonText2.fontSize = 18;
+                buttonTextRT2.anchorMin = Vector2.zero;
+                buttonTextRT2.anchorMax = Vector2.one;
+                buttonTextRT2.offsetMin = Vector2.zero;
+                buttonTextRT2.offsetMax = Vector2.zero;
+
+                // Button position 2
+                buttonRT2.anchorMin = new Vector2(0.7f, 0.1f);
+                buttonRT2.anchorMax = new Vector2(0.7f, 0.1f);
+                buttonRT2.anchoredPosition = Vector2.zero;
+                buttonRT2.sizeDelta = new Vector2(160, 50);
+
+                void FuncThatCallsFunc() => ClickToGraphCycle();
+                button2.onClick.AddListener((UnityAction)FuncThatCallsFunc);
+
+                void FuncThatCallsFunc2() => ClickToText();
+                button.onClick.AddListener((UnityAction)FuncThatCallsFunc2);
+        }
+
+        private void BuildCustomAppUI(GameObject container)
+        {
+            try
+            {
+                if (showGraph)
+                    BuildCustomAppUIGraph(container);
+                else
+                    BuildCustomAppUITexts(container);
             }
             catch (Exception ex)
             {
@@ -620,9 +765,45 @@ namespace StonksAccounting
             }
         }
 
-        public void Click()
+        public void ClickToGraphCycle()
         {
-            MelonLogger.Msg("ButtonClickHandler: Clicked!");
+            MelonLogger.Msg("ButtonClickHandler: TO GRAPH!");
+            graphState++;
+
+            if (graphState>1)
+                graphState = 0;
+
+            if (_customAppContainer != null)
+            {
+                LoggerInstance.Msg("Rebuilding UI in existing panel '" + _customAppContainer.name + "'...");
+                HideDefaultAppUI(_customAppContainer);
+                BuildCustomAppUI(_customAppContainer);
+            }
+        }
+
+        public void ClickToGraph()
+        {
+            MelonLogger.Msg("ButtonClickHandler: TO GRAPH!");
+            showGraph = !showGraph;
+
+            if (_customAppContainer != null)
+            {
+                LoggerInstance.Msg("Rebuilding UI in existing panel '" + _customAppContainer.name + "'...");
+                HideDefaultAppUI(_customAppContainer);
+                BuildCustomAppUI(_customAppContainer);
+            }
+            
+        }
+        public void ClickToText()
+        {
+            MelonLogger.Msg("ButtonClickHandler: TO TEXT!");
+            showGraph = !showGraph;
+            if (_customAppContainer != null)
+            {
+                LoggerInstance.Msg("Rebuilding UI in existing panel '" + _customAppContainer.name + "'...");
+                HideDefaultAppUI(_customAppContainer);
+                BuildCustomAppUI(_customAppContainer);
+            }
         }
 
         private bool ModifyAppIcon(string targetIconGameObjectName, string targetLabelText, MelonLogger.Instance logger)
@@ -707,7 +888,7 @@ namespace StonksAccounting
 
         private Texture2D? LoadCustomTexture(MelonLogger.Instance? logger)
         {
-            string iconPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "SilkroadIcon.png");
+            string iconPath = Il2CppSystem.IO.Path.Combine(MelonEnvironment.UserDataDirectory, "stonks4.png");
             if (!Il2CppSystem.IO.File.Exists(iconPath))
             {
                 if (logger != null)
