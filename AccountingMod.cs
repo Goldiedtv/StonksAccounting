@@ -64,6 +64,9 @@ namespace StonksAccounting
                 string jsonFromFile = Il2CppSystem.IO.File.ReadAllText(dataPath);
                 var loadedData = JsonConvert.DeserializeObject<AccountingData>(jsonFromFile);
                 MelonLogger.Msg($"JSON Loaded!");
+                if (loadedData != null)
+                    MelonLogger.Msg($"Todays Day Number: {loadedData.CurrentDayTransaction.dayNumber}");
+
                 return loadedData ?? new AccountingData();
             }
             catch (Exception ex)
@@ -102,6 +105,8 @@ namespace StonksAccounting
                     _accountingData.CurrentDayTransaction.endCash = _moneyManager.cashInstance.Balance;
                     _accountingData.CurrentDayTransaction.endOnline = _moneyManager.onlineBalance;
 
+                    MelonLogger.Msg($"Adding history with DayKey: {_accountingData.CurrentDayTransaction.dayNumber}");
+
                     _accountingData.TransactionHistory[_accountingData.CurrentDayTransaction.dayNumber] = _accountingData.CurrentDayTransaction;
                     AccountingTransactions transactions = new AccountingTransactions
                     {
@@ -111,10 +116,12 @@ namespace StonksAccounting
                     };
                     _accountingData.CurrentDayTransaction = transactions;
 
-                    MelonLogger.Msg($"ElapsedDays > currentDayTransactionDay! Adding old one to history and creating a new one! Our history is {_accountingData.TransactionHistory.Count} long.");
+                    MelonLogger.Msg($"Adding new day with DayNumber: {__instance.ElapsedDays}");
+
+                    MelonLogger.Msg($"Our history is {_accountingData.TransactionHistory.Count} long.");
                 }
                 else
-                    MelonLogger.Msg($"ElapsedDays is not greater than currentDayTransactionDay, not adding to history yet!");
+                    MelonLogger.Msg($"ElapsedDays ({__instance.ElapsedDays}) is not greater than currentDayTransactionDay ({_accountingData.CurrentDayTransaction.dayNumber}), not adding to history yet!");
 
                 SaveData();
             }
@@ -146,7 +153,7 @@ namespace StonksAccounting
             {
                 if (o)
                 {
-                    MelonLogger.Msg($"Phone is open!");
+                    //MelonLogger.Msg($"Phone is open!");
                     updateStonks = true;
                 }
                 return true;
@@ -402,7 +409,7 @@ namespace StonksAccounting
                     dayNumber = timeManager.ElapsedDays
                 };
                 _accountingData.CurrentDayTransaction = transactions;
-                LoggerInstance.Msg("Data Created!");
+                LoggerInstance.Msg($"Data Created! We got {timeManager.ElapsedDays} as today's day number.");
             }
         }
 
@@ -481,7 +488,7 @@ namespace StonksAccounting
                     yList.Add(d.Value);
                 }
             }
-
+            
             var scatter = plt.Add.Scatter(xList, yList);
             // plt.Grid.XAxis.IsVisible = false;
             // plt.Grid.YAxis.IsVisible = true;
@@ -492,11 +499,13 @@ namespace StonksAccounting
                 plt.YLabel("Profits", 30);
             else
                 plt.YLabel("Total Money", 30);
-            
+
             plt.Grid.XAxisStyle.IsVisible = false;
             plt.Grid.YAxisStyle.IsVisible = true;
 
             plt.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericFixedInterval(1);
+
+            plt.Add.HorizontalLine(0, 1, ScottPlot.Colors.Red);
 
             scatter.LineWidth = 5;
             scatter.MarkerSize = 10;
@@ -513,241 +522,241 @@ namespace StonksAccounting
         {
             LoggerInstance.Msg("BuildCustomAppUI: Starting setup.");
 
-                // Background
-                GameObject bgGO = new GameObject("AppBackground");
-                bgGO.transform.SetParent(container.transform, false);
-                RectTransform bgRT = bgGO.AddComponent<RectTransform>();
-                Image bg = bgGO.AddComponent<Image>();
-                bg.color = Color.white;
-                bgRT.anchorMin = new Vector2(0.0f, 0.0f);
-                bgRT.anchorMax = new Vector2(1.0f, 1.0f);
-                bgRT.anchoredPosition = Vector2.zero;
-                bgRT.sizeDelta = new Vector2(100, 100);
+            // Background
+            GameObject bgGO = new GameObject("AppBackground");
+            bgGO.transform.SetParent(container.transform, false);
+            RectTransform bgRT = bgGO.AddComponent<RectTransform>();
+            Image bg = bgGO.AddComponent<Image>();
+            bg.color = Color.white;
+            bgRT.anchorMin = new Vector2(0.0f, 0.0f);
+            bgRT.anchorMax = new Vector2(1.0f, 1.0f);
+            bgRT.anchoredPosition = Vector2.zero;
+            bgRT.sizeDelta = new Vector2(100, 100);
 
-                // Title Text
-                GameObject textGO = new GameObject("AppTitleText");
-                textGO.transform.SetParent(container.transform, false);
-                RectTransform textRT = textGO.AddComponent<RectTransform>();
-                Text text = textGO.AddComponent<Text>();
-                text.text = "S.T.O.N.K.S. - Accounting";
-                text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                text.alignment = TextAnchor.MiddleCenter;
-                text.color = Color.black;
-                text.fontSize = 40;
-                textRT.anchorMin = new Vector2(0.5f, 0.95f);
-                textRT.anchorMax = new Vector2(0.5f, 0.95f);
-                textRT.anchoredPosition = Vector2.zero;
-                textRT.sizeDelta = new Vector2(500, 50);
+            // Title Text
+            GameObject textGO = new GameObject("AppTitleText");
+            textGO.transform.SetParent(container.transform, false);
+            RectTransform textRT = textGO.AddComponent<RectTransform>();
+            Text text = textGO.AddComponent<Text>();
+            text.text = "S.T.O.N.K.S. - Accounting";
+            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.black;
+            text.fontSize = 40;
+            textRT.anchorMin = new Vector2(0.5f, 0.95f);
+            textRT.anchorMax = new Vector2(0.5f, 0.95f);
+            textRT.anchoredPosition = Vector2.zero;
+            textRT.sizeDelta = new Vector2(500, 50);
 
 
-                float _cashGain = _accountingData.CurrentDayTransaction.cashGain;
-                float _cashLoss = _accountingData.CurrentDayTransaction.cashLoss;
-                float _onlineGain = _accountingData.CurrentDayTransaction.onlineGain;
-                float _onlineLoss = _accountingData.CurrentDayTransaction.onlineLoss;
+            float _cashGain = _accountingData.CurrentDayTransaction.cashGain;
+            float _cashLoss = _accountingData.CurrentDayTransaction.cashLoss;
+            float _onlineGain = _accountingData.CurrentDayTransaction.onlineGain;
+            float _onlineLoss = _accountingData.CurrentDayTransaction.onlineLoss;
 
-                string negativeMark = "-";
+            string negativeMark = "-";
 
-                // TodayCashGains Text
-                GameObject CashGainGO = new GameObject("TodayCashGainText");
-                CashGainGO.transform.SetParent(container.transform, false);
-                RectTransform CashGainRT = CashGainGO.AddComponent<RectTransform>();
-                Text CashGain = CashGainGO.AddComponent<Text>();
-                CashGain.text = $"Cash Today:\n+{_cashGain}$\n{((_cashLoss == 0) ? negativeMark : "")}{_cashLoss}$\n= {_cashGain + _cashLoss}$";
-                CashGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                CashGain.alignment = TextAnchor.MiddleRight;
-                CashGain.color = Color.black;
-                CashGain.fontSize = 35;
-                CashGainRT.anchorMin = new Vector2(0.1f, 0.70f);
-                CashGainRT.anchorMax = new Vector2(0.1f, 0.70f);
-                CashGainRT.anchoredPosition = Vector2.zero;
-                CashGainRT.sizeDelta = new Vector2(300, 300);
+            // TodayCashGains Text
+            GameObject CashGainGO = new GameObject("TodayCashGainText");
+            CashGainGO.transform.SetParent(container.transform, false);
+            RectTransform CashGainRT = CashGainGO.AddComponent<RectTransform>();
+            Text CashGain = CashGainGO.AddComponent<Text>();
+            CashGain.text = $"Cash Today:\n+{_cashGain}$\n{((_cashLoss == 0) ? negativeMark : "")}{_cashLoss}$\n= {_cashGain + _cashLoss}$";
+            CashGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            CashGain.alignment = TextAnchor.MiddleRight;
+            CashGain.color = Color.black;
+            CashGain.fontSize = 35;
+            CashGainRT.anchorMin = new Vector2(0.1f, 0.70f);
+            CashGainRT.anchorMax = new Vector2(0.1f, 0.70f);
+            CashGainRT.anchoredPosition = Vector2.zero;
+            CashGainRT.sizeDelta = new Vector2(300, 300);
 
-                // OnlineGains Text
-                GameObject OnlineGainGO = new GameObject("TodayOnlineGainText");
-                OnlineGainGO.transform.SetParent(container.transform, false);
-                RectTransform OnlineGainRT = OnlineGainGO.AddComponent<RectTransform>();
-                Text OnlineGain = OnlineGainGO.AddComponent<Text>();
-                OnlineGain.text = $"Online Today:\n+{_onlineGain}$\n{((_onlineLoss == 0) ? negativeMark : "")}{_onlineLoss}$\n= {_onlineGain + _onlineLoss}$";
-                OnlineGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                OnlineGain.alignment = TextAnchor.MiddleRight;
-                OnlineGain.color = Color.black;
-                OnlineGain.fontSize = 35;
-                OnlineGainRT.anchorMin = new Vector2(0.45f, 0.70f);
-                OnlineGainRT.anchorMax = new Vector2(0.45f, 0.70f);
-                OnlineGainRT.anchoredPosition = Vector2.zero;
-                OnlineGainRT.sizeDelta = new Vector2(300, 300);
+            // OnlineGains Text
+            GameObject OnlineGainGO = new GameObject("TodayOnlineGainText");
+            OnlineGainGO.transform.SetParent(container.transform, false);
+            RectTransform OnlineGainRT = OnlineGainGO.AddComponent<RectTransform>();
+            Text OnlineGain = OnlineGainGO.AddComponent<Text>();
+            OnlineGain.text = $"Online Today:\n+{_onlineGain}$\n{((_onlineLoss == 0) ? negativeMark : "")}{_onlineLoss}$\n= {_onlineGain + _onlineLoss}$";
+            OnlineGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            OnlineGain.alignment = TextAnchor.MiddleRight;
+            OnlineGain.color = Color.black;
+            OnlineGain.fontSize = 35;
+            OnlineGainRT.anchorMin = new Vector2(0.45f, 0.70f);
+            OnlineGainRT.anchorMax = new Vector2(0.45f, 0.70f);
+            OnlineGainRT.anchoredPosition = Vector2.zero;
+            OnlineGainRT.sizeDelta = new Vector2(300, 300);
 
-                // TotalGains Textd
-                GameObject TotalGainGO = new GameObject("TodayTotalGainText");
-                TotalGainGO.transform.SetParent(container.transform, false);
-                RectTransform TotalGainRT = TotalGainGO.AddComponent<RectTransform>();
-                Text TotalGain = TotalGainGO.AddComponent<Text>();
-                TotalGain.text = $"Total Today:\n+{_onlineGain + _cashGain}$\n{((_onlineLoss + _cashLoss == 0) ? negativeMark : "")}{_onlineLoss + _cashLoss}$\n= {(_onlineGain + _cashGain) + (_onlineLoss + _cashLoss)}$";
-                TotalGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                TotalGain.alignment = TextAnchor.MiddleRight;
-                TotalGain.color = Color.black;
-                TotalGain.fontSize = 35;
-                TotalGainRT.anchorMin = new Vector2(0.8f, 0.70f);
-                TotalGainRT.anchorMax = new Vector2(0.8f, 0.70f);
-                TotalGainRT.anchoredPosition = Vector2.zero;
-                TotalGainRT.sizeDelta = new Vector2(300, 300);
+            // TotalGains Textd
+            GameObject TotalGainGO = new GameObject("TodayTotalGainText");
+            TotalGainGO.transform.SetParent(container.transform, false);
+            RectTransform TotalGainRT = TotalGainGO.AddComponent<RectTransform>();
+            Text TotalGain = TotalGainGO.AddComponent<Text>();
+            TotalGain.text = $"Total Today:\n+{_onlineGain + _cashGain}$\n{((_onlineLoss + _cashLoss == 0) ? negativeMark : "")}{_onlineLoss + _cashLoss}$\n= {(_onlineGain + _cashGain) + (_onlineLoss + _cashLoss)}$";
+            TotalGain.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            TotalGain.alignment = TextAnchor.MiddleRight;
+            TotalGain.color = Color.black;
+            TotalGain.fontSize = 35;
+            TotalGainRT.anchorMin = new Vector2(0.8f, 0.70f);
+            TotalGainRT.anchorMax = new Vector2(0.8f, 0.70f);
+            TotalGainRT.anchoredPosition = Vector2.zero;
+            TotalGainRT.sizeDelta = new Vector2(300, 300);
 
-                // SevenDayTotal Text
-                float _cashGain7 = _accountingData.GetSevenDayCash(true);
-                float _cashLoss7 = _accountingData.GetSevenDayCash(false);
-                float _onlineGain7 = _accountingData.GetSevenDayOnline(true);
-                float _onlineLoss7 = _accountingData.GetSevenDayOnline(false);
-                string disclaimer = (_accountingData.TransactionHistory.Count < 6) ? $"({_accountingData.TransactionHistory.Count + 1} in history)" : "";
+            // SevenDayTotal Text
+            float _cashGain7 = _accountingData.GetSevenDayCash(true);
+            float _cashLoss7 = _accountingData.GetSevenDayCash(false);
+            float _onlineGain7 = _accountingData.GetSevenDayOnline(true);
+            float _onlineLoss7 = _accountingData.GetSevenDayOnline(false);
+            string disclaimer = (_accountingData.TransactionHistory.Count < 6) ? $"({_accountingData.TransactionHistory.Count + 1} in history)" : "";
 
-                GameObject SevenDayTotalGO = new GameObject("SevenDayTotalText");
-                SevenDayTotalGO.transform.SetParent(container.transform, false);
-                RectTransform SevenDayTotalRT = SevenDayTotalGO.AddComponent<RectTransform>();
-                Text SevenDayTotal = SevenDayTotalGO.AddComponent<Text>();
-                SevenDayTotal.text = $"7 day Total{disclaimer}:\n+{_cashGain7 + _onlineGain7}$\n{((_cashLoss7 + _onlineLoss7 == 0) ? negativeMark : "")}{_onlineLoss7 + _cashLoss7}$\n= {(_onlineGain7 + _cashGain7) + (_onlineLoss7 + _cashLoss7)}$";
-                SevenDayTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                SevenDayTotal.alignment = TextAnchor.MiddleRight;
-                SevenDayTotal.color = Color.black;
-                SevenDayTotal.fontSize = 35;
-                SevenDayTotalRT.anchorMin = new Vector2(0.3f, 0.30f);
-                SevenDayTotalRT.anchorMax = new Vector2(0.3f, 0.30f);
-                SevenDayTotalRT.anchoredPosition = Vector2.zero;
-                SevenDayTotalRT.sizeDelta = new Vector2(300, 300);
+            GameObject SevenDayTotalGO = new GameObject("SevenDayTotalText");
+            SevenDayTotalGO.transform.SetParent(container.transform, false);
+            RectTransform SevenDayTotalRT = SevenDayTotalGO.AddComponent<RectTransform>();
+            Text SevenDayTotal = SevenDayTotalGO.AddComponent<Text>();
+            SevenDayTotal.text = $"7 day Total{disclaimer}:\n+{_cashGain7 + _onlineGain7}$\n{((_cashLoss7 + _onlineLoss7 == 0) ? negativeMark : "")}{_onlineLoss7 + _cashLoss7}$\n= {(_onlineGain7 + _cashGain7) + (_onlineLoss7 + _cashLoss7)}$";
+            SevenDayTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            SevenDayTotal.alignment = TextAnchor.MiddleRight;
+            SevenDayTotal.color = Color.black;
+            SevenDayTotal.fontSize = 35;
+            SevenDayTotalRT.anchorMin = new Vector2(0.3f, 0.30f);
+            SevenDayTotalRT.anchorMax = new Vector2(0.3f, 0.30f);
+            SevenDayTotalRT.anchoredPosition = Vector2.zero;
+            SevenDayTotalRT.sizeDelta = new Vector2(300, 300);
 
-                GameObject GrandTotalGO = new GameObject("GrandTotalText");
-                GrandTotalGO.transform.SetParent(container.transform, false);
-                RectTransform GrandTotalRT = GrandTotalGO.AddComponent<RectTransform>();
-                Text GrandTotal = GrandTotalGO.AddComponent<Text>();
-                GrandTotal.text = $"Grand Total:\nWIP";
-                GrandTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                GrandTotal.alignment = TextAnchor.MiddleRight;
-                GrandTotal.color = Color.black;
-                GrandTotal.fontSize = 35;
-                GrandTotalRT.anchorMin = new Vector2(0.7f, 0.30f);
-                GrandTotalRT.anchorMax = new Vector2(0.7f, 0.30f);
-                GrandTotalRT.anchoredPosition = Vector2.zero;
-                GrandTotalRT.sizeDelta = new Vector2(300, 300);
+            GameObject GrandTotalGO = new GameObject("GrandTotalText");
+            GrandTotalGO.transform.SetParent(container.transform, false);
+            RectTransform GrandTotalRT = GrandTotalGO.AddComponent<RectTransform>();
+            Text GrandTotal = GrandTotalGO.AddComponent<Text>();
+            GrandTotal.text = $"Grand Total:\nWIP";
+            GrandTotal.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            GrandTotal.alignment = TextAnchor.MiddleRight;
+            GrandTotal.color = Color.black;
+            GrandTotal.fontSize = 35;
+            GrandTotalRT.anchorMin = new Vector2(0.7f, 0.30f);
+            GrandTotalRT.anchorMax = new Vector2(0.7f, 0.30f);
+            GrandTotalRT.anchoredPosition = Vector2.zero;
+            GrandTotalRT.sizeDelta = new Vector2(300, 300);
 
-                // Button
-                GameObject buttonGO = new GameObject("ShowGraphButton");
-                buttonGO.transform.SetParent(container.transform, false);
-                RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
-                Image buttonImage = buttonGO.AddComponent<Image>();
-                buttonImage.color = Color.gray;
-                Button button = buttonGO.AddComponent<Button>();
+            // Button
+            GameObject buttonGO = new GameObject("ShowGraphButton");
+            buttonGO.transform.SetParent(container.transform, false);
+            RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
+            Image buttonImage = buttonGO.AddComponent<Image>();
+            buttonImage.color = Color.gray;
+            Button button = buttonGO.AddComponent<Button>();
 
-                // Button text
-                GameObject buttonTextGO = new GameObject("ShowGraphButtonText");
-                buttonTextGO.transform.SetParent(buttonGO.transform, false);
-                RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
-                Text buttonText = buttonTextGO.AddComponent<Text>();
-                buttonText.text = "Graph";
-                buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                buttonText.alignment = TextAnchor.MiddleCenter;
-                buttonText.color = Color.black;
-                buttonText.fontSize = 18;
-                buttonTextRT.anchorMin = Vector2.zero;
-                buttonTextRT.anchorMax = Vector2.one;
-                buttonTextRT.offsetMin = Vector2.zero;
-                buttonTextRT.offsetMax = Vector2.zero;
+            // Button text
+            GameObject buttonTextGO = new GameObject("ShowGraphButtonText");
+            buttonTextGO.transform.SetParent(buttonGO.transform, false);
+            RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
+            Text buttonText = buttonTextGO.AddComponent<Text>();
+            buttonText.text = "Graph";
+            buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            buttonText.alignment = TextAnchor.MiddleCenter;
+            buttonText.color = Color.black;
+            buttonText.fontSize = 18;
+            buttonTextRT.anchorMin = Vector2.zero;
+            buttonTextRT.anchorMax = Vector2.one;
+            buttonTextRT.offsetMin = Vector2.zero;
+            buttonTextRT.offsetMax = Vector2.zero;
 
-                // Button position
-                buttonRT.anchorMin = new Vector2(0.5f, 0.1f);
-                buttonRT.anchorMax = new Vector2(0.5f, 0.1f);
-                buttonRT.anchoredPosition = Vector2.zero;
-                buttonRT.sizeDelta = new Vector2(160, 50);
+            // Button position
+            buttonRT.anchorMin = new Vector2(0.5f, 0.1f);
+            buttonRT.anchorMax = new Vector2(0.5f, 0.1f);
+            buttonRT.anchoredPosition = Vector2.zero;
+            buttonRT.sizeDelta = new Vector2(160, 50);
 
-                void FuncThatCallsFunc() => ClickToGraph();
-                button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
+            void FuncThatCallsFunc() => ClickToGraph();
+            button.onClick.AddListener((UnityAction)FuncThatCallsFunc);
         }
         private void BuildCustomAppUIGraph(GameObject container)
         {
-                // Background
-                GameObject bgGO = new GameObject("AppBackground");
-                bgGO.transform.SetParent(container.transform, false);
-                RectTransform bgRT = bgGO.AddComponent<RectTransform>();
-                Image bg = bgGO.AddComponent<Image>();
-                bg.color = Color.white;
-                bgRT.anchorMin = new Vector2(0.0f, 0.0f);
-                bgRT.anchorMax = new Vector2(1.0f, 1.0f);
-                bgRT.anchoredPosition = Vector2.zero;
-                bgRT.sizeDelta = new Vector2(100, 100);
+            // Background
+            GameObject bgGO = new GameObject("AppBackground");
+            bgGO.transform.SetParent(container.transform, false);
+            RectTransform bgRT = bgGO.AddComponent<RectTransform>();
+            Image bg = bgGO.AddComponent<Image>();
+            bg.color = Color.white;
+            bgRT.anchorMin = new Vector2(0.0f, 0.0f);
+            bgRT.anchorMax = new Vector2(1.0f, 1.0f);
+            bgRT.anchoredPosition = Vector2.zero;
+            bgRT.sizeDelta = new Vector2(100, 100);
 
-                // Graph
-                GameObject graphGO = new GameObject("GraphCustom");
-                graphGO.transform.SetParent(container.transform, false);
-                RectTransform graphRT = graphGO.AddComponent<RectTransform>();
-                Image graph = graphGO.AddComponent<Image>();
-                Texture2D tex = new Texture2D(2, 2);
-                tex.LoadImage(GenerateGraph());
-                graph.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
-                graphRT.anchorMin = new Vector2(0.30f, 0.4f);
-                graphRT.anchorMax = new Vector2(0.75f, 0.7f);
-                graphRT.anchoredPosition = Vector2.zero;
-                graphRT.sizeDelta = new Vector2(600, 400);
+            // Graph
+            GameObject graphGO = new GameObject("GraphCustom");
+            graphGO.transform.SetParent(container.transform, false);
+            RectTransform graphRT = graphGO.AddComponent<RectTransform>();
+            Image graph = graphGO.AddComponent<Image>();
+            Texture2D tex = new Texture2D(2, 2);
+            tex.LoadImage(GenerateGraph());
+            graph.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+            graphRT.anchorMin = new Vector2(0.30f, 0.4f);
+            graphRT.anchorMax = new Vector2(0.75f, 0.7f);
+            graphRT.anchoredPosition = Vector2.zero;
+            graphRT.sizeDelta = new Vector2(600, 400);
 
-                // Button
-                GameObject buttonGO = new GameObject("ShowTextshButton");
-                buttonGO.transform.SetParent(container.transform, false);
-                RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
-                Image buttonImage = buttonGO.AddComponent<Image>();
-                buttonImage.color = Color.gray;
-                Button button = buttonGO.AddComponent<Button>();
+            // Button
+            GameObject buttonGO = new GameObject("ShowTextshButton");
+            buttonGO.transform.SetParent(container.transform, false);
+            RectTransform buttonRT = buttonGO.AddComponent<RectTransform>();
+            Image buttonImage = buttonGO.AddComponent<Image>();
+            buttonImage.color = Color.gray;
+            Button button = buttonGO.AddComponent<Button>();
 
-                // Button text
-                GameObject buttonTextGO = new GameObject("ShowTextsButtonText");
-                buttonTextGO.transform.SetParent(buttonGO.transform, false);
-                RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
-                Text buttonText = buttonTextGO.AddComponent<Text>();
-                buttonText.text = "Texts";
-                buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                buttonText.alignment = TextAnchor.MiddleCenter;
-                buttonText.color = Color.black;
-                buttonText.fontSize = 18;
-                buttonTextRT.anchorMin = Vector2.zero;
-                buttonTextRT.anchorMax = Vector2.one;
-                buttonTextRT.offsetMin = Vector2.zero;
-                buttonTextRT.offsetMax = Vector2.zero;
+            // Button text
+            GameObject buttonTextGO = new GameObject("ShowTextsButtonText");
+            buttonTextGO.transform.SetParent(buttonGO.transform, false);
+            RectTransform buttonTextRT = buttonTextGO.AddComponent<RectTransform>();
+            Text buttonText = buttonTextGO.AddComponent<Text>();
+            buttonText.text = "Texts";
+            buttonText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            buttonText.alignment = TextAnchor.MiddleCenter;
+            buttonText.color = Color.black;
+            buttonText.fontSize = 18;
+            buttonTextRT.anchorMin = Vector2.zero;
+            buttonTextRT.anchorMax = Vector2.one;
+            buttonTextRT.offsetMin = Vector2.zero;
+            buttonTextRT.offsetMax = Vector2.zero;
 
-                // Button position
-                buttonRT.anchorMin = new Vector2(0.5f, 0.1f);
-                buttonRT.anchorMax = new Vector2(0.5f, 0.1f);
-                buttonRT.anchoredPosition = Vector2.zero;
-                buttonRT.sizeDelta = new Vector2(160, 50);
+            // Button position
+            buttonRT.anchorMin = new Vector2(0.5f, 0.1f);
+            buttonRT.anchorMax = new Vector2(0.5f, 0.1f);
+            buttonRT.anchoredPosition = Vector2.zero;
+            buttonRT.sizeDelta = new Vector2(160, 50);
 
-                                // Button 2
-                GameObject buttonGO2 = new GameObject("ShowGraph2Button");
-                buttonGO2.transform.SetParent(container.transform, false);
-                RectTransform buttonRT2 = buttonGO2.AddComponent<RectTransform>();
-                Image buttonImage2 = buttonGO2.AddComponent<Image>();
-                buttonImage2.color = Color.gray;
-                Button button2 = buttonGO2.AddComponent<Button>();
+            // Button 2
+            GameObject buttonGO2 = new GameObject("ShowGraph2Button");
+            buttonGO2.transform.SetParent(container.transform, false);
+            RectTransform buttonRT2 = buttonGO2.AddComponent<RectTransform>();
+            Image buttonImage2 = buttonGO2.AddComponent<Image>();
+            buttonImage2.color = Color.gray;
+            Button button2 = buttonGO2.AddComponent<Button>();
 
-                // Button text 2
-                GameObject buttonTextGO2 = new GameObject("ShowGraphButtonText");
-                buttonTextGO2.transform.SetParent(buttonGO2.transform, false);
-                RectTransform buttonTextRT2 = buttonTextGO2.AddComponent<RectTransform>();
-                Text buttonText2 = buttonTextGO2.AddComponent<Text>();
-                buttonText2.text = "Next Graph";
-                buttonText2.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-                buttonText2.alignment = TextAnchor.MiddleCenter;
-                buttonText2.color = Color.black;
-                buttonText2.fontSize = 18;
-                buttonTextRT2.anchorMin = Vector2.zero;
-                buttonTextRT2.anchorMax = Vector2.one;
-                buttonTextRT2.offsetMin = Vector2.zero;
-                buttonTextRT2.offsetMax = Vector2.zero;
+            // Button text 2
+            GameObject buttonTextGO2 = new GameObject("ShowGraphButtonText");
+            buttonTextGO2.transform.SetParent(buttonGO2.transform, false);
+            RectTransform buttonTextRT2 = buttonTextGO2.AddComponent<RectTransform>();
+            Text buttonText2 = buttonTextGO2.AddComponent<Text>();
+            buttonText2.text = "Next Graph";
+            buttonText2.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            buttonText2.alignment = TextAnchor.MiddleCenter;
+            buttonText2.color = Color.black;
+            buttonText2.fontSize = 18;
+            buttonTextRT2.anchorMin = Vector2.zero;
+            buttonTextRT2.anchorMax = Vector2.one;
+            buttonTextRT2.offsetMin = Vector2.zero;
+            buttonTextRT2.offsetMax = Vector2.zero;
 
-                // Button position 2
-                buttonRT2.anchorMin = new Vector2(0.7f, 0.1f);
-                buttonRT2.anchorMax = new Vector2(0.7f, 0.1f);
-                buttonRT2.anchoredPosition = Vector2.zero;
-                buttonRT2.sizeDelta = new Vector2(160, 50);
+            // Button position 2
+            buttonRT2.anchorMin = new Vector2(0.7f, 0.1f);
+            buttonRT2.anchorMax = new Vector2(0.7f, 0.1f);
+            buttonRT2.anchoredPosition = Vector2.zero;
+            buttonRT2.sizeDelta = new Vector2(160, 50);
 
-                void FuncThatCallsFunc() => ClickToGraphCycle();
-                button2.onClick.AddListener((UnityAction)FuncThatCallsFunc);
+            void FuncThatCallsFunc() => ClickToGraphCycle();
+            button2.onClick.AddListener((UnityAction)FuncThatCallsFunc);
 
-                void FuncThatCallsFunc2() => ClickToText();
-                button.onClick.AddListener((UnityAction)FuncThatCallsFunc2);
+            void FuncThatCallsFunc2() => ClickToText();
+            button.onClick.AddListener((UnityAction)FuncThatCallsFunc2);
         }
 
         private void BuildCustomAppUI(GameObject container)
@@ -770,7 +779,7 @@ namespace StonksAccounting
             MelonLogger.Msg("ButtonClickHandler: TO GRAPH!");
             graphState++;
 
-            if (graphState>1)
+            if (graphState > 1)
                 graphState = 0;
 
             if (_customAppContainer != null)
@@ -792,7 +801,7 @@ namespace StonksAccounting
                 HideDefaultAppUI(_customAppContainer);
                 BuildCustomAppUI(_customAppContainer);
             }
-            
+
         }
         public void ClickToText()
         {
